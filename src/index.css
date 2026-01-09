@@ -10,7 +10,9 @@
   --bg-app: #F7F8FA;
 }
 
-* { box-sizing: border-box; }
+* { 
+  box-sizing: border-box; 
+}
 
 body {
   margin: 0;
@@ -26,4 +28,356 @@ body {
   justify-content: center;
   padding: 24px;
   width: 100%;
+}
+
+/* ========================================
+   APP CONTAINER - Common for both games
+   ======================================== */
+.app {
+  width: 100%;
+  max-width: 1150px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-content: start;
+}
+
+.symmetry-app {
+  max-width: 1100px;
+  grid-template-columns: 1fr 320px;
+}
+
+.cleaning-app {
+  max-width: 1150px;
+  grid-template-columns: 1fr 340px;
+}
+
+/* ========================================
+   HEADER - Common
+   ======================================== */
+header {
+  grid-column: 1 / -1;
+}
+
+header h1 {
+  margin: 0 0 6px 0;
+  font-size: 1.6rem;
+  color: var(--info);
+}
+
+header p {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+/* ========================================
+   BOARD WRAPPER - Common
+   ======================================== */
+.board-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  background: var(--neutral);
+  border-radius: 16px;
+}
+
+/* ========================================
+   SYMMETRY GAME - Board & Pieces
+   ======================================== */
+.symmetry-board {
+  display: grid;
+  grid-template-columns: repeat(6, 72px);
+  grid-template-rows: repeat(6, 72px);
+  gap: 6px;
+}
+
+.symmetry-board .cell {
+  background: #FFFFFF;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.symmetry-board .button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  position: absolute;
+  transition: all 0.1s ease;
+}
+
+.button.btn-green {
+  background: var(--success);
+}
+
+.button.btn-yellow {
+  background: var(--progress);
+}
+
+.button.btn-blue {
+  background: var(--info);
+}
+
+.button.btn-purple {
+  background: var(--warning);
+}
+
+.button.selected {
+  outline: 3px solid var(--info);
+  outline-offset: 4px;
+}
+
+.button.confirmed {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ========================================
+   CLEANING GAME - Floor & Tiles
+   ======================================== */
+.cleaning-floor {
+  display: grid;
+  grid-template-columns: repeat(8, 64px);
+  grid-template-rows: repeat(8, 64px);
+  gap: 6px;
+}
+
+.cleaning-floor .tile {
+  background: #FFFFFF;
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tile.selected {
+  outline: 3px solid var(--info);
+  outline-offset: 2px;
+}
+
+.tile.clean {
+  background: var(--success);
+}
+
+/* Dirt Types */
+.dirt {
+  position: absolute;
+  border-radius: 50%;
+  background: #8C6A4A;
+}
+
+.germ {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--info);
+  top: 24px;
+  left: 24px;
+}
+
+.contamination {
+  position: absolute;
+  background: var(--warning);
+  border-radius: 10px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* ========================================
+   SIDE PANEL - Common
+   ======================================== */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card {
+  background: #FAFAFA;
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.card h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1rem;
+  color: var(--info);
+}
+
+.instruction {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--text-soft);
+  margin: 0;
+}
+
+/* ========================================
+   COORDINATES & FEEDBACK
+   ======================================== */
+.coords {
+  font-family: monospace;
+  background: #EFEFEF;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.feedback {
+  font-family: monospace;
+  background: #EFEFEF;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.text-muted {
+  color: #999;
+}
+
+.clean-status {
+  margin-top: 8px;
+  color: #4A9A3F;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.warning-msg {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  line-height: 1.4;
+}
+
+/* ========================================
+   TOOLS (Cleaning Game)
+   ======================================== */
+.tools {
+  display: flex;
+  gap: 12px;
+}
+
+.tool {
+  flex: 1;
+  padding: 14px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  background: var(--progress);
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.tool:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tool.active {
+  outline: 3px solid var(--info);
+  outline-offset: -3px;
+}
+
+.tool:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+}
+
+/* ========================================
+   ACTION BUTTONS - Common
+   ======================================== */
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn.confirm {
+  background: var(--success);
+  color: var(--text-main);
+}
+
+.action-btn.reset {
+  background: #DDDDDD;
+  color: var(--text-main);
+}
+
+.action-btn.submit {
+  background: var(--info);
+  color: white;
+}
+
+.action-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.06);
+}
+
+/* ========================================
+   FOOTER - Common
+   ======================================== */
+footer {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  margin-top: 12px;
+}
+
+/* ========================================
+   RESPONSIVE DESIGN
+   ======================================== */
+@media (max-width: 768px) {
+  .app {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+  
+  .symmetry-board {
+    grid-template-columns: repeat(6, 56px);
+    grid-template-rows: repeat(6, 56px);
+  }
+  
+  .cleaning-floor {
+    grid-template-columns: repeat(8, 48px);
+    grid-template-rows: repeat(8, 48px);
+  }
+  
+  .board-wrapper {
+    padding: 12px;
+  }
+  
+  .panel {
+    gap: 16px;
+  }
 }
