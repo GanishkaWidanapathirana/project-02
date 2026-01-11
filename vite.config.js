@@ -7,14 +7,28 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+
+      // IMPORTANT for React Router dashboards
+      workbox: {
+        navigateFallback: '/index.html'
+      },
+
+      includeAssets: [
+        'favicon.ico',
+        'apple-touch-icon.png',
+        'masked-icon.svg'
+      ],
+
       manifest: {
         name: 'Symmetry Detection Game',
         short_name: 'SymmetryGame',
         description: 'A game to detect symmetry preferences.',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
         theme_color: '#ffffff',
         background_color: '#F7F8FA',
-        display: 'standalone',
+
         icons: [
           {
             src: 'pwa-192x192.png',

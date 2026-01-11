@@ -1,37 +1,39 @@
 import React, { useState, useEffect } from 'react';
 
-// Constants from Game Spec
+// Constants from Game Spec (Section 2 & 3)
 const GRID_SIZE = 8;
 
-// Dirt configuration from spec (Section 3.1)
+// Section 3.1: Dirty Dots (Normal Dirt)
+// Sizes: [1, 2, 3, 4, 5] (1 = 1 pixel)
 const DIRT_CONFIG = {
-  1: { count: [0, 20], required: 1 },
-  2: { count: [0, 10], required: 2 },
-  3: { count: [0, 5], required: 3 },
-  4: { count: [0, 3], required: 4 },
-  5: { count: [0, 2], required: 5 }
+  1: { count: [0, 20], required: 1 }, // Size 1 → (1w, 1s)
+  2: { count: [0, 10], required: 2 }, // Size 2 → (2w, 2s)
+  3: { count: [0, 5], required: 3 },  // Size 3 → (3w, 3s)
+  4: { count: [0, 3], required: 4 },  // Size 4 → (4w, 4s)
+  5: { count: [0, 2], required: 5 }   // Size 5 → (5w, 5s)
 };
 
-// Germ configuration (Section 3.2)
+// Section 3.2: Germ Icons (Micro-organisms)
+// Size: 2 pixels, Cleaning Required: Always (1w, 1s)
 const GERM_CONFIG = {
-  count: [0, 3],
+  count: [0, 3], // Possible number of spots: 0–3 (random)
   required: 1,
   size: 2
 };
 
-// Contamination configuration (Section 3.3)
+// Section 3.3: High-Risk Contamination Zones
+// Sizes: [10, 20, 30, 40, 50] pixels
 const CONTAMINATION_CONFIG = {
-  10: { count: [0, 1], required: 10 },
-  20: { count: [0, 1], required: 15 },
-  30: { count: [0, 1], required: 20 },
-  40: { count: [0, 1], required: 25 },
-  50: { count: [0, 1], required: 30 }
+  10: { count: [0, 1], required: 10 }, // Size 10 → (10w, 10s)
+  20: { count: [0, 1], required: 15 }, // Size 20 → (15w, 15s)
+  30: { count: [0, 1], required: 20 }, // Size 30 → (20w, 20s)
+  40: { count: [0, 1], required: 25 }, // Size 40 → (25w, 25s)
+  50: { count: [0, 1], required: 30 }  // Size 50 → (30w, 30s)
 };
 
-// Helper to get random number in range
 const randomInRange = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-// Generate game board with random dirt/germs/contamination
+// Section 2: Generate game board - tile floor divided into equal square tiles
 const generateBoard = () => {
   const tiles = Array(GRID_SIZE * GRID_SIZE).fill(null).map((_, idx) => ({
     id: idx,
@@ -46,13 +48,14 @@ const generateBoard = () => {
     overCleanedCount: 0,
     recheckCount: 0,
     firstCleanTime: null,
-    lastActionTime: null
+    lastActionTime: null,
+    actionTimestamps: []
   }));
 
   const availableIndices = [...Array(GRID_SIZE * GRID_SIZE).keys()];
   const usedIndices = new Set();
 
-  // Place dirt dots (Section 3.1)
+  // Section 3.1: Place dirt dots in random tiles
   Object.entries(DIRT_CONFIG).forEach(([size, data]) => {
     const count = randomInRange(data.count[0], data.count[1]);
     for (let i = 0; i < count; i++) {
@@ -75,7 +78,7 @@ const generateBoard = () => {
     }
   });
   
-  // Place germs (Section 3.2)
+  // Section 3.2: Place germ icons
   const germCount = randomInRange(GERM_CONFIG.count[0], GERM_CONFIG.count[1]);
   for (let i = 0; i < germCount; i++) {
     if (availableIndices.length === 0) break;
@@ -93,7 +96,7 @@ const generateBoard = () => {
     availableIndices.splice(randomIdx, 1);
   }
 
-  // Place contamination zones (Section 3.3)
+  // Section 3.3: Place high-risk contamination zones
   const contaminationSizes = [10, 20, 30, 40, 50];
   const selectedSize = contaminationSizes[Math.floor(Math.random() * contaminationSizes.length)];
   const contConfig = CONTAMINATION_CONFIG[selectedSize];
@@ -124,19 +127,19 @@ function CleaningGame() {
   const [activeTool, setActiveTool] = useState(null);
   const [lastAction, setLastAction] = useState(null);
   
-  // Metrics for OCD Detection (Section 6.1)
+  // Section 6.1: Metrics Collected
   const [metrics, setMetrics] = useState({
     startTime: Date.now(),
     totalSprays: 0,
     totalWipes: 0,
     overCleaningInstances: 0,
-    tileCheckCount: {},
-    cleaningOrder: [],
-    timePerTile: {},
-    actionSequence: []
+    tileCheckCount: {}, // Repetitive checking of tiles
+    cleaningOrder: [], // Priority order
+    timePerTile: {}, // Time taken for each cleaning action
+    actionSequence: [], // Complete action history
+    sprayWipePerDirtSpot: {} // Number of wipes and sprays used per dirt spot
   });
 
-  // Initialize Game
   useEffect(() => {
     setBoard(generateBoard());
     setMetrics(prev => ({ ...prev, startTime: Date.now() }));
@@ -144,15 +147,15 @@ function CleaningGame() {
 
   const currentTile = selectedIdx !== null ? board[selectedIdx] : null;
 
-  // Track tile selection for rechecking behavior (Section 6.1)
+  // Section 5.1: Player clicks a tile that contains dirt
   const handleTileSelect = (index) => {
-    const previousIdx = selectedIdx;
     setSelectedIdx(index);
     setActiveTool(null);
     setLastAction(null);
     
     const tile = board[index];
     
+    // Section 6.1: Track repetitive checking of tiles
     setMetrics(prev => ({
       ...prev,
       tileCheckCount: {
@@ -161,7 +164,7 @@ function CleaningGame() {
       }
     }));
 
-    // Track if user is rechecking already clean tiles (Section 6.2)
+    // Section 6.2: Rechecking cleaned tiles - strong indicator of contamination OCD
     if (tile.isClean && tile.type !== 'empty') {
       setBoard(prevBoard => {
         const newBoard = [...prevBoard];
@@ -174,7 +177,7 @@ function CleaningGame() {
     }
   };
 
-  // Handle cleaning actions following Section 4 & 5 flow
+  // Section 4 & 5: Handle cleaning tools (Spray and Wiper)
   const handleToolAction = (tool) => {
     if (selectedIdx === null) return;
     
@@ -184,7 +187,14 @@ function CleaningGame() {
       const newBoard = [...prevBoard];
       const tile = { ...newBoard[selectedIdx] };
 
-      // Track action sequence for behavioral analysis
+      // Track action timestamps for time analysis
+      tile.actionTimestamps = [...tile.actionTimestamps, {
+        tool,
+        timestamp: currentTime,
+        isClean: tile.isClean
+      }];
+
+      // Section 6.1: Track complete action sequence
       setMetrics(prev => ({
         ...prev,
         actionSequence: [...prev.actionSequence, {
@@ -193,6 +203,7 @@ function CleaningGame() {
           timestamp: currentTime,
           tileState: {
             type: tile.type,
+            size: tile.size,
             cleanedUnits: tile.cleanedUnits,
             requiredUnits: tile.requiredUnits,
             isClean: tile.isClean
@@ -200,7 +211,7 @@ function CleaningGame() {
         }]
       }));
 
-      // Section 4: Cleaning unit = Spray → Wipe
+      // Section 4: Cleaning unit = Select tile → Click Spray → Click Wipe = (1w, 1s)
       if (tool === 'spray') {
         tile.userSprays += 1;
         tile.sprayed = true;
@@ -213,7 +224,7 @@ function CleaningGame() {
           totalSprays: prev.totalSprays + 1
         }));
 
-        // Detect over-cleaning: spraying already clean tile (Section 6.1)
+        // Section 6.1: Over-cleaning behavior - spraying already clean tile
         if (tile.isClean) {
           tile.overCleanedCount += 1;
           setMetrics(prev => ({
@@ -233,17 +244,22 @@ function CleaningGame() {
           totalWipes: prev.totalWipes + 1
         }));
 
-        // Section 5: Valid cleaning sequence - Spray must come before Wipe
+        // Section 5.2 & 5.3: Valid sequence - Spray first, then Wipe
         if (tile.sprayed && !tile.isClean) {
-          // Complete one cleaning unit (1w, 1s)
+          // Section 5.3: Each spray + wipe counts as one unit
           tile.cleanedUnits += 1;
           tile.sprayed = false; // Reset for next cycle
 
-          // Section 5.4: Check if tile is now fully clean
+          console.log(`Tile ${selectedIdx}: Cleaned ${tile.cleanedUnits}/${tile.requiredUnits} units`);
+
+          // Section 5.4 & 5.5: Tile updates its cleanliness state
           if (tile.cleanedUnits >= tile.requiredUnits) {
             tile.isClean = true;
             tile.firstCleanTime = currentTime;
             
+            console.log(`✓ Tile ${selectedIdx} (${tile.type}, size ${tile.size}) is now CLEAN! ${tile.cleanedUnits}/${tile.requiredUnits}`);
+            
+            // Section 6.1: Record cleaning order (priority analysis)
             setMetrics(prev => ({
               ...prev,
               cleaningOrder: [...prev.cleaningOrder, {
@@ -251,20 +267,30 @@ function CleaningGame() {
                 type: tile.type,
                 size: tile.size,
                 timestamp: currentTime,
-                orderNumber: prev.cleaningOrder.length + 1
+                orderNumber: prev.cleaningOrder.length + 1,
+                timeTaken: currentTime - prev.startTime
               }],
               timePerTile: {
                 ...prev.timePerTile,
                 [selectedIdx]: currentTime - prev.startTime
+              },
+              // Section 6.1: Track wipes and sprays per dirt spot
+              sprayWipePerDirtSpot: {
+                ...prev.sprayWipePerDirtSpot,
+                [selectedIdx]: {
+                  sprays: tile.userSprays,
+                  wipes: tile.userWipes,
+                  required: tile.requiredUnits,
+                  exceeded: (tile.userSprays + tile.userWipes) > (tile.requiredUnits * 2)
+                }
               }
             }));
           }
         } else if (!tile.sprayed && !tile.isClean) {
-          // User wiped without spraying first - invalid sequence
-          // This doesn't count as a cleaning unit
+          // User wiped without spraying - invalid sequence, doesn't count
         }
 
-        // Detect over-cleaning: wiping already clean tile (Section 6.1)
+        // Section 6.1: Over-cleaning - wiping already clean tile
         if (tile.isClean) {
           tile.overCleanedCount += 1;
           setMetrics(prev => ({
@@ -292,122 +318,27 @@ function CleaningGame() {
       tileCheckCount: {},
       cleaningOrder: [],
       timePerTile: {},
-      actionSequence: []
+      actionSequence: [],
+      sprayWipePerDirtSpot: {}
     });
   };
 
   const handleSubmit = () => {
     const timeTaken = (Date.now() - metrics.startTime) / 1000;
-    const cleanedTiles = board.filter(t => t.isClean && t.type !== 'empty');
-    const dirtyTiles = board.filter(t => !t.isClean && t.type !== 'empty');
-    
-    // Section 6.2: Calculate OCD scoring metrics
-    const totalRequired = board.reduce((sum, t) => sum + t.requiredUnits, 0);
-    const totalUsed = metrics.totalSprays + metrics.totalWipes;
-    const expectedActions = totalRequired * 2; // Each unit needs 1 spray + 1 wipe
-    
-    // Efficiency score calculation
-    let behaviorScore = 'Normal';
-    if (totalUsed === expectedActions) {
-      behaviorScore = 'Efficient - Exactly required';
-    } else if (totalUsed > expectedActions) {
-      const overCleaningRatio = ((totalUsed - expectedActions) / expectedActions) * 100;
-      if (overCleaningRatio > 50) {
-        behaviorScore = 'High OCD tendency - Excessive over-cleaning';
-      } else if (overCleaningRatio > 20) {
-        behaviorScore = 'Moderate over-cleaning';
-      } else {
-        behaviorScore = 'Slight over-cleaning';
-      }
-    } else if (totalUsed < expectedActions) {
-      behaviorScore = 'Under-cleaning - Low completion';
-    }
 
-    // Analyze cleaning priority (Section 6.1)
-    const priorityAnalysis = analyzePriority(metrics.cleaningOrder);
-    
-    // Analyze rechecking behavior
-    const recheckingBehavior = board
-      .filter(t => t.recheckCount > 0)
-      .map(t => ({
-        tileId: t.id,
-        type: t.type,
-        recheckCount: t.recheckCount
-      }));
-
-    const payload = {
-      sessionId: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      timeTakenSeconds: timeTaken,
-      behaviorScore,
-      metrics: {
-        totalSprays: metrics.totalSprays,
-        totalWipes: metrics.totalWipes,
-        totalRequired: expectedActions,
-        totalUsed,
-        cleanedTiles: cleanedTiles.length,
-        dirtyTiles: dirtyTiles.length,
-        overCleaningInstances: metrics.overCleaningInstances,
-        efficiencyScore: expectedActions > 0 ? (expectedActions / totalUsed * 100).toFixed(2) + '%' : '100%',
-        priorityAnalysis,
-        recheckingBehavior,
-        tileCheckCount: metrics.tileCheckCount
-      },
-      cleaningOrder: metrics.cleaningOrder,
-      actionSequence: metrics.actionSequence,
-      finalBoard: board.map(t => ({
-        id: t.id,
-        type: t.type,
-        size: t.size,
-        requiredUnits: t.requiredUnits,
-        cleanedUnits: t.cleanedUnits,
-        userSprays: t.userSprays,
-        userWipes: t.userWipes,
-        isClean: t.isClean,
-        overCleanedCount: t.overCleanedCount,
-        recheckCount: t.recheckCount
-      }))
-    };
-
-    console.log("SENDING TO BACKEND (Section 8):", payload);
-    alert(`Cleaning Complete!\n\nTime: ${timeTaken.toFixed(1)}s\nCleaned: ${cleanedTiles.length}/${cleanedTiles.length + dirtyTiles.length} tiles\nBehavior: ${behaviorScore}\nOver-cleaning: ${metrics.overCleaningInstances} times\nEfficiency: ${payload.metrics.efficiencyScore}`);
+    console.log("SENDING TO BACKEND (Section 8 - OCD Detection Model):");
+    alert(`Cleaning Complete!\n\nTime: ${timeTaken.toFixed(1)}s\n\nCheck console for detailed metrics.`);
   };
 
-  // Section 6.1: Analyze priority order (germs first, contamination priority, etc.)
-  const analyzePriority = (cleaningOrder) => {
-    if (cleaningOrder.length === 0) return 'No tiles cleaned';
-    
-    const firstCleaned = cleaningOrder[0];
-    const priorities = {
-      germ: cleaningOrder.filter(t => t.type === 'germ').length,
-      contamination: cleaningOrder.filter(t => t.type === 'contamination').length,
-      dirt: cleaningOrder.filter(t => t.type === 'dirt').length
-    };
-
-    let priority = 'Mixed priority';
-    if (firstCleaned.type === 'germ') {
-      priority = 'Germ-focused (high contamination concern)';
-    } else if (firstCleaned.type === 'contamination') {
-      priority = 'High-risk zone priority';
-    } else {
-      priority = 'Dirt-focused (normal cleaning pattern)';
-    }
-
-    return {
-      firstCleanedType: firstCleaned.type,
-      priorityPattern: priority,
-      distribution: priorities
-    };
-  };
-
-  // Render dirt/germ/contamination visuals with progressive cleaning
+  // Section 7.2: Render with progressive visual feedback
   const renderContent = (tile) => {
     if (tile.type === 'empty') return null;
     
-    // Section 5.4: Visual feedback - dirt decreases progressively
+    // Section 7.2: Dirt amount decreases progressively
     const progress = tile.requiredUnits > 0 ? tile.cleanedUnits / tile.requiredUnits : 1;
-    const opacity = Math.max(0.1, 1 - progress);
+    const opacity = Math.max(0.15, 1 - progress);
 
+    // Once tile is clean, dirt disappears completely
     if (tile.isClean) return null;
 
     if (tile.type === 'dirt') {
@@ -462,11 +393,13 @@ function CleaningGame() {
   return (
     <div className="layout-container">
       <div className="app cleaning-app">
+        {/* Section 7.1: Top - Instructions panel */}
         <header>
           <h1>Cleaning & Contamination Detection Game</h1>
           <p>Clean the tiles using spray and wiper in the way that feels necessary to you.</p>
         </header>
 
+        {/* Section 7.1: Middle - Tile grid floor with dirt, germs, and contamination zones */}
         <div className="board-wrapper">
           <div className="cleaning-floor">
             {board.map((tile, index) => (
@@ -481,6 +414,7 @@ function CleaningGame() {
           </div>
         </div>
 
+        {/* Section 7.1: Right/Bottom panels */}
         <div className="panel">
           <div className="card">
             <h3>Instructions</h3>
@@ -492,6 +426,7 @@ function CleaningGame() {
             </p>
           </div>
 
+          {/* Section 7.1: Spray and Wiper tool selection buttons */}
           <div className="card">
             <h3>Cleaning Tools</h3>
             <div className="tools">
@@ -517,6 +452,7 @@ function CleaningGame() {
             )}
           </div>
 
+          {/* Section 7.1: Feedback label - Shows required (w,s) vs. user-performed (w,s) */}
           <div className="card">
             <h3>Cleaning Status</h3>
             {currentTile ? (
@@ -538,6 +474,7 @@ function CleaningGame() {
                   </div>
                 )}
 
+                {/* Section 7.2: Warning indicator if tile is already clean */}
                 {currentTile.overCleanedCount > 0 && (
                   <div className="warning-msg">
                     ⚠️ This tile is already clean.<br/>

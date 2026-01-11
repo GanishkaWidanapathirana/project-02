@@ -22,12 +22,20 @@ const Dashboard = () => {
       path: '/cleaning'
     },
     {
-      id: 'coming-soon',
-      title: 'More Games Coming',
-      description: 'New assessment modules will appear here.',
-      color: 'var(--text-soft)',
-      bgColor: 'var(--neutral)',
-      path: '#'
+      id: 'checking',
+      title: 'Checking & Rechecking',
+      description: 'Secure household items to detect checking behavior patterns.',
+      color: '#FF6B6B', // Warm red/coral color for alert/checking theme
+      bgColor: '#FFF5F5', // Light red/pink background
+      path: '/checking'
+    },
+    {
+      id: 'intrusive-thoughts',
+      title: 'Intrusive Thoughts & Cognitive Interpretation',
+      description: 'Assess cognitive distortions through scenario-based questions.',
+      color: '#FF6B6B', // Coral/red for cognitive/thought patterns
+      bgColor: '#FFF5F5', // Light red/pink background
+      path: '/intrusive-thoughts'
     }
   ];
 

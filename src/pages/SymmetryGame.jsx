@@ -1,465 +1,488 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
-// Constants from Game Spec
-const GRID_SIZE = 8;
+// Constants (Section 2 & 3)
+const GRID_SIZE = 6;
+const SUB_GRID_STEPS = 8; // Section 3.2: 1/8 subdivisions per box (0 to 8)
 
-// Dirt configuration from spec (Section 3.1)
-const DIRT_CONFIG = {
-  1: { count: [0, 20], required: 1 },
-  2: { count: [0, 10], required: 2 },
-  3: { count: [0, 5], required: 3 },
-  4: { count: [0, 3], required: 4 },
-  5: { count: [0, 2], required: 5 }
-};
+const INITIAL_PIECES = [
+  { id: 1, boxX: 0, boxY: 0, subX: 4, subY: 4, color: 'btn-green', confirmed: false },
+  { id: 2, boxX: 5, boxY: 0, subX: 4, subY: 4, color: 'btn-blue', confirmed: false },
+  { id: 3, boxX: 2, boxY: 1, subX: 4, subY: 4, color: 'btn-yellow', confirmed: false },
+  { id: 4, boxX: 3, boxY: 3, subX: 4, subY: 4, color: 'btn-purple', confirmed: false },
+];
 
-// Germ configuration (Section 3.2)
-const GERM_CONFIG = {
-  count: [0, 3],
-  required: 1,
-  size: 2
-};
-
-// Contamination configuration (Section 3.3)
-const CONTAMINATION_CONFIG = {
-  10: { count: [0, 1], required: 10 },
-  20: { count: [0, 1], required: 15 },
-  30: { count: [0, 1], required: 20 },
-  40: { count: [0, 1], required: 25 },
-  50: { count: [0, 1], required: 30 }
-};
-
-// Helper to get random number in range
-const randomInRange = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-
-// Generate game board with random dirt/germs/contamination
-const generateBoard = () => {
-  const tiles = Array(GRID_SIZE * GRID_SIZE).fill(null).map((_, idx) => ({
-    id: idx,
-    type: 'empty',
-    size: 0,
-    requiredUnits: 0,
-    cleanedUnits: 0,
-    userSprays: 0,
-    userWipes: 0,
-    sprayed: false,
-    isClean: true,
-    overCleanedCount: 0,
-    checkCount: 0,
-    firstCleanTime: null
-  }));
-
-  const availableIndices = [...Array(GRID_SIZE * GRID_SIZE).keys()];
-  const usedIndices = new Set();
-
-  const placeItems = (type, sizes, config) => {
-    Object.entries(sizes).forEach(([size, data]) => {
-      const count = randomInRange(data.count[0], data.count[1]);
-      for (let i = 0; i < count; i++) {
-        if (availableIndices.length === 0) return;
-        
-        const randomIdx = Math.floor(Math.random() * availableIndices.length);
-        const tileIdx = availableIndices[randomIdx];
-        
-        if (!usedIndices.has(tileIdx)) {
-          tiles[tileIdx] = {
-            ...tiles[tileIdx],
-            type,
-            size: parseInt(size),
-            requiredUnits: data.required,
-            isClean: false
-          };
-          usedIndices.add(tileIdx);
-          availableIndices.splice(randomIdx, 1);
-        }
-      }
-    });
-  };
-
-  // Place dirt dots
-  placeItems('dirt', DIRT_CONFIG);
+function SymmetryGame() {
+  const [pieces, setPieces] = useState(INITIAL_PIECES);
+  const [selectedId, setSelectedId] = useState(null);
   
-  // Place germs
-  const germCount = randomInRange(GERM_CONFIG.count[0], GERM_CONFIG.count[1]);
-  for (let i = 0; i < germCount; i++) {
-    if (availableIndices.length === 0) break;
-    const randomIdx = Math.floor(Math.random() * availableIndices.length);
-    const tileIdx = availableIndices[randomIdx];
-    
-    tiles[tileIdx] = {
-      ...tiles[tileIdx],
-      type: 'germ',
-      size: GERM_CONFIG.size,
-      requiredUnits: GERM_CONFIG.required,
-      isClean: false
-    };
-    usedIndices.add(tileIdx);
-    availableIndices.splice(randomIdx, 1);
-  }
-
-  // Place contamination zones
-  const contaminationSizes = [10, 20, 30, 40, 50];
-  const selectedSize = contaminationSizes[Math.floor(Math.random() * contaminationSizes.length)];
-  const contConfig = CONTAMINATION_CONFIG[selectedSize];
-  const contCount = randomInRange(contConfig.count[0], contConfig.count[1]);
-  
-  for (let i = 0; i < contCount; i++) {
-    if (availableIndices.length === 0) break;
-    const randomIdx = Math.floor(Math.random() * availableIndices.length);
-    const tileIdx = availableIndices[randomIdx];
-    
-    tiles[tileIdx] = {
-      ...tiles[tileIdx],
-      type: 'contamination',
-      size: selectedSize,
-      requiredUnits: contConfig.required,
-      isClean: false
-    };
-    usedIndices.add(tileIdx);
-    availableIndices.splice(randomIdx, 1);
-  }
-
-  return tiles;
-};
-
-function CleaningGame() {
-  const [board, setBoard] = useState([]);
-  const [selectedIdx, setSelectedIdx] = useState(null);
-  const [activeTool, setActiveTool] = useState(null);
-  
-  // Metrics for OCD Detection (Section 6.1)
+  // Section 4.1 & 6: Metrics for OCD Detection
   const [metrics, setMetrics] = useState({
+    moves: 0,
     startTime: Date.now(),
-    totalSprays: 0,
-    totalWipes: 0,
-    overCleaningInstances: 0,
-    tileCheckCount: {},
-    cleaningOrder: [],
-    timePerTile: {}
+    moveHistory: [], // Movement patterns and frequency
+    movesPerButton: {}, // Number of moves per button
+    adjustmentCount: {}, // Repeated adjustments per button
+    timeSpentPerButton: {}, // Time tracking
+    selectionCount: {} // Track how many times each button was selected
   });
 
-  // Initialize Game
-  useEffect(() => {
-    setBoard(generateBoard());
-    setMetrics(prev => ({ ...prev, startTime: Date.now() }));
-  }, []);
-
-  const currentTile = selectedIdx !== null ? board[selectedIdx] : null;
-
-  // Track tile selection for rechecking behavior
-  const handleTileSelect = (index) => {
-    setSelectedIdx(index);
-    setActiveTool(null);
-    
-    setMetrics(prev => ({
-      ...prev,
-      tileCheckCount: {
-        ...prev.tileCheckCount,
-        [index]: (prev.tileCheckCount[index] || 0) + 1
-      }
-    }));
+  // Section 3.1: Calculate position percentage for CSS (1/8 steps)
+  const getPositionStyle = (subX, subY) => {
+    const stepSize = 100 / SUB_GRID_STEPS;
+    return {
+      left: `${subX * stepSize}%`,
+      top: `${subY * stepSize}%`,
+      transform: 'translate(-50%, -50%)'
+    };
   };
 
-  // Handle cleaning actions (Section 4 & 5)
-  const handleToolAction = (tool) => {
-    if (selectedIdx === null) return;
+  // Section 3.1 & 3.2: Handle Keyboard Movement with Boundary Conditions
+  const handleKeyDown = useCallback((e) => {
+    if (!selectedId) return;
     
-    setBoard(prevBoard => {
-      const newBoard = [...prevBoard];
-      const tile = { ...newBoard[selectedIdx] };
+    // Prevent default arrow key behavior
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      e.preventDefault();
+    }
 
-      // Update tool tracking
-      if (tool === 'spray') {
-        tile.userSprays += 1;
-        tile.sprayed = true;
-        setActiveTool('spray');
-        
-        setMetrics(prev => ({
-          ...prev,
-          totalSprays: prev.totalSprays + 1
-        }));
-      } 
-      else if (tool === 'wipe') {
-        tile.userWipes += 1;
-        setActiveTool('wipe');
-        
-        setMetrics(prev => ({
-          ...prev,
-          totalWipes: prev.totalWipes + 1
-        }));
+    setPieces((prevPieces) => {
+      return prevPieces.map((p) => {
+        if (p.id !== selectedId || p.confirmed) return p;
 
-        // Check if spray was used first (proper cleaning sequence)
-        if (tile.sprayed && !tile.isClean) {
-          tile.cleanedUnits += 1;
-          tile.sprayed = false;
+        let newSubX = p.subX;
+        let newSubY = p.subY;
+        let moved = false;
 
-          // Check if tile is now fully clean
-          if (tile.cleanedUnits >= tile.requiredUnits) {
-            tile.isClean = true;
-            tile.firstCleanTime = Date.now();
-            
-            setMetrics(prev => ({
-              ...prev,
-              cleaningOrder: [...prev.cleaningOrder, {
-                tileId: selectedIdx,
-                type: tile.type,
-                size: tile.size,
-                timestamp: Date.now()
-              }],
-              timePerTile: {
-                ...prev.timePerTile,
-                [selectedIdx]: Date.now() - prev.startTime
-              }
-            }));
-          }
+        // Section 3.2: Movement restrictions based on boundary conditions
+        // Inside-box coordinate: (0,0) to (8,8)
+        switch (e.key) {
+          case 'ArrowUp':
+            // Move up → decrease Y
+            if (newSubY > 0) {
+              newSubY--;
+              moved = true;
+            }
+            break;
+
+          case 'ArrowDown':
+            // Move down → increase Y
+            if (newSubY < SUB_GRID_STEPS-1) {
+              newSubY++;
+              moved = true;
+            }
+            break;
+
+          case 'ArrowLeft':
+            if (newSubX > 0) {
+              newSubX--;
+              moved = true;
+            }
+            break;
+
+          case 'ArrowRight':
+            if (newSubX < SUB_GRID_STEPS-1) {
+              newSubX++;
+              moved = true;
+            }
+            break;
+
+          default:
+            return p;
         }
-      }
 
-      // Detect over-cleaning (Section 6.1)
-      if (tile.isClean && (tool === 'spray' || tool === 'wipe')) {
-        tile.overCleanedCount += 1;
-        
+        if (moved) {
+          const currentTime = Date.now();
+          
+          // Section 6: Track movement patterns and frequency
+          setMetrics(prev => ({
+            ...prev,
+            moves: prev.moves + 1,
+            moveHistory: [...prev.moveHistory, {
+              pieceId: p.id,
+              timestamp: currentTime,
+              from: { boxX: p.boxX, boxY: p.boxY, subX: p.subX, subY: p.subY },
+              to: { boxX: p.boxX, boxY: p.boxY, subX: newSubX, subY: newSubY },
+              direction: e.key
+            }],
+            movesPerButton: {
+              ...prev.movesPerButton,
+              [p.id]: (prev.movesPerButton[p.id] || 0) + 1
+            },
+            adjustmentCount: {
+              ...prev.adjustmentCount,
+              [p.id]: (prev.adjustmentCount[p.id] || 0) + 1
+            }
+          }));
+        }
+
+        return { ...p, subX: newSubX, subY: newSubY };
+      });
+    });
+  }, [selectedId]);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  // Section 3.1: Select button by clicking
+  const handleSelect = (id) => {
+    const piece = pieces.find(p => p.id === id);
+    if (!piece.confirmed) {
+      const previousId = selectedId;
+      setSelectedId(id);
+      
+      // Track selection count (anxiety-driven corrections indicator)
+      setMetrics(prev => ({
+        ...prev,
+        selectionCount: {
+          ...prev.selectionCount,
+          [id]: (prev.selectionCount[id] || 0) + 1
+        }
+      }));
+      
+      // Track time spent per button
+      if (previousId && previousId !== id) {
         setMetrics(prev => ({
           ...prev,
-          overCleaningInstances: prev.overCleaningInstances + 1
+          timeSpentPerButton: {
+            ...prev.timeSpentPerButton,
+            [previousId]: (prev.timeSpentPerButton[previousId] || 0) + (Date.now() - prev.startTime)
+          }
         }));
       }
-
-      newBoard[selectedIdx] = tile;
-      return newBoard;
-    });
+    }
   };
 
   const handleReset = () => {
-    setBoard(generateBoard());
-    setSelectedIdx(null);
-    setActiveTool(null);
-    setMetrics({
-      startTime: Date.now(),
-      totalSprays: 0,
-      totalWipes: 0,
-      overCleaningInstances: 0,
-      tileCheckCount: {},
-      cleaningOrder: [],
-      timePerTile: {}
+    setPieces(INITIAL_PIECES);
+    setMetrics({ 
+      moves: 0, 
+      startTime: Date.now(), 
+      moveHistory: [],
+      movesPerButton: {},
+      adjustmentCount: {},
+      timeSpentPerButton: {},
+      selectionCount: {}
     });
+    setSelectedId(null);
   };
 
-  const handleSubmit = () => {
+  // Section 3.3: Confirm placement - button becomes fixed
+  const handleConfirmPiece = () => {
+    if (!selectedId) {
+      alert('Please select a piece first');
+      return;
+    }
+
+    setPieces(prev => prev.map(p => 
+      p.id === selectedId ? { ...p, confirmed: true } : p
+    ));
+    
+    // Track time for this button
+    setMetrics(prev => ({
+      ...prev,
+      timeSpentPerButton: {
+        ...prev.timeSpentPerButton,
+        [selectedId]: (prev.timeSpentPerButton[selectedId] || 0) + (Date.now() - prev.startTime)
+      }
+    }));
+    
+    setSelectedId(null);
+  };
+
+  const handleFinalSubmit = () => {
+    const allConfirmed = pieces.every(p => p.confirmed);
+    if (!allConfirmed) {
+      alert('Please confirm all pieces before submitting');
+      return;
+    }
+
     const timeTaken = (Date.now() - metrics.startTime) / 1000;
-    const cleanedTiles = board.filter(t => t.isClean && t.type !== 'empty');
-    const dirtyTiles = board.filter(t => !t.isClean && t.type !== 'empty');
     
-    // Calculate OCD scores (Section 6.2)
-    const totalRequired = board.reduce((sum, t) => sum + t.requiredUnits, 0);
-    const totalUsed = metrics.totalSprays + metrics.totalWipes;
-    const overCleaningRatio = totalRequired > 0 ? (totalUsed / (totalRequired * 2)) : 0;
+    // Section 4: Calculate symmetry detection metrics
+    const symmetryAnalysis = calculateSymmetryScore(pieces);
     
+    // Section 6 & 7: Prepare complete data for OCD detection model
     const payload = {
       sessionId: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
+      gameName: 'Symmetry Detection Game',
       timeTakenSeconds: timeTaken,
-      metrics: {
-        ...metrics,
-        cleanedTiles: cleanedTiles.length,
-        dirtyTiles: dirtyTiles.length,
-        overCleaningRatio,
-        efficiencyScore: totalRequired > 0 ? (totalRequired * 2) / totalUsed : 1
-      },
-      finalBoard: board.map(t => ({
-        id: t.id,
-        type: t.type,
-        size: t.size,
-        required: t.requiredUnits,
-        used: { sprays: t.userSprays, wipes: t.userWipes },
-        isClean: t.isClean,
-        overCleaned: t.overCleanedCount
-      }))
+      totalMoves: metrics.moves,
+      
+      // Section 4.1: Final coordinates of every button
+      finalPositions: pieces.map(p => ({
+        id: p.id,
+        color: p.color,
+        boxCoordinate: { x: p.boxX, y: p.boxY },
+        insideBoxCoordinate: { x: p.subX, y: p.subY },
+        confirmed: p.confirmed
+      })),
+      
+      // Section 4.1 & 6: Number of moves per button
+      movesPerButton: metrics.movesPerButton,
+      
+      // Section 6: Movement patterns and frequency
+      moveHistory: metrics.moveHistory,
+      
+      // Section 7: Repeated adjustments (anxiety-driven corrections)
+      adjustmentCount: metrics.adjustmentCount,
+      selectionCount: metrics.selectionCount,
+      
+      // Section 6: Time spent achieving alignment
+      timeSpentPerButton: metrics.timeSpentPerButton,
+      
+      // Section 4.1 & 4.2: Symmetry scoring
+      symmetryAnalysis,
+      
+      // Section 7: Behavioral profile for OCD detection
+      behaviorProfile: {
+        averageMovesPerButton: (metrics.moves / pieces.length).toFixed(2),
+        totalAdjustments: Object.values(metrics.adjustmentCount).reduce((a, b) => a + b, 0),
+        symmetryScore: symmetryAnalysis.overallScore,
+        precisionLevel: symmetryAnalysis.precisionLevel,
+        timeSpent: timeTaken,
+        obsessionIndicator: calculateObsessionScore(metrics, symmetryAnalysis)
+      }
     };
 
-    console.log("SENDING TO BACKEND:", payload);
-    alert(`Cleaning Complete!\nTime: ${timeTaken.toFixed(1)}s\nCleaned: ${cleanedTiles.length} tiles\nOver-cleaning instances: ${metrics.overCleaningInstances}`);
+    console.log("SENDING TO BACKEND (Section 6 - OCD Detection):", payload);
+    alert(`Submission Complete!\n\nMoves: ${metrics.moves}\nTime: ${timeTaken.toFixed(1)}s\nSymmetry Score: ${symmetryAnalysis.overallScore}%\nPrecision: ${symmetryAnalysis.precisionLevel}\nOCD Indicator: ${payload.behaviorProfile.obsessionIndicator}/10`);
   };
 
-  // Render dirt/germ/contamination visuals
-  const renderContent = (tile) => {
-    if (tile.type === 'empty') return null;
+  // Section 7: Calculate obsession score based on behavior
+  const calculateObsessionScore = (metrics, symmetryAnalysis) => {
+    let score = 0;
     
-    const progress = tile.requiredUnits > 0 ? tile.cleanedUnits / tile.requiredUnits : 1;
-    const opacity = Math.max(0.1, 1 - progress);
-
-    if (tile.isClean) return null;
-
-    if (tile.type === 'dirt') {
-      const pxSize = tile.size * 2 + 4;
-      const top = 10 + (tile.id * 7 % 45);
-      const left = 10 + (tile.id * 3 % 45);
-      
-      return (
-        <div 
-          className="dirt"
-          style={{
-            width: `${pxSize}px`,
-            height: `${pxSize}px`,
-            top: `${top}px`,
-            left: `${left}px`,
-            opacity
-          }} 
-        />
-      );
-    }
-
-    if (tile.type === 'germ') {
-      return (
-        <div 
-          className="germ"
-          style={{ opacity }} 
-        />
-      );
-    }
-
-    if (tile.type === 'contamination') {
-      return (
-        <div 
-          className="contamination"
-          style={{
-            width: `${tile.size}px`,
-            height: `${tile.size}px`,
-            opacity: opacity * 0.85
-          }} 
-        />
-      );
-    }
+    // High number of moves indicates perfectionism
+    const avgMoves = metrics.moves / pieces.length;
+    if (avgMoves > 50) score += 3;
+    else if (avgMoves > 30) score += 2;
+    else if (avgMoves > 15) score += 1;
+    
+    // Multiple selections of same button
+    const maxSelections = Math.max(...Object.values(metrics.selectionCount));
+    if (maxSelections > 10) score += 2;
+    else if (maxSelections > 5) score += 1;
+    
+    // High symmetry score with high precision indicates compulsion
+    if (symmetryAnalysis.overallScore > 80 && avgMoves > 20) score += 3;
+    else if (symmetryAnalysis.overallScore > 60 && avgMoves > 15) score += 2;
+    
+    // Time spent (excessive time on alignment)
+    const totalTime = (Date.now() - metrics.startTime) / 1000;
+    if (totalTime > 300) score += 2; // 5+ minutes
+    
+    return Math.min(score, 10);
   };
 
-  const dirtyCount = board.filter(t => !t.isClean && t.type !== 'empty').length;
-  const cleanCount = board.filter(t => t.isClean && t.type !== 'empty').length;
+  // Section 4.1 & 4.2: Calculate symmetry along vertical, horizontal, and diagonal axes
+  const calculateSymmetryScore = (finalPieces) => {
+    let totalScore = 0;
+    const maxScore = 100;
+    
+    // Section 4.1: Vertical axis symmetry
+    let verticalSymmetry = 0;
+    finalPieces.forEach(piece => {
+      const mirrorX = GRID_SIZE - 1 - piece.boxX;
+      const mirrorPiece = finalPieces.find(p => 
+        p.id !== piece.id && 
+        p.boxX === mirrorX && 
+        p.boxY === piece.boxY
+      );
+      
+      if (mirrorPiece) {
+        // Check sub-grid precision (Section 4.2)
+        const subMirrorX = SUB_GRID_STEPS - piece.subX;
+        const subPrecision = Math.abs(mirrorPiece.subX - subMirrorX);
+        const subYPrecision = Math.abs(mirrorPiece.subY - piece.subY);
+        
+        if (subPrecision <= 1 && subYPrecision <= 1) {
+          verticalSymmetry += 15; // High precision
+        } else if (subPrecision <= 2 && subYPrecision <= 2) {
+          verticalSymmetry += 10; // Medium precision
+        } else {
+          verticalSymmetry += 5; // General alignment
+        }
+      }
+    });
+    
+    // Section 4.1: Horizontal axis symmetry
+    let horizontalSymmetry = 0;
+    finalPieces.forEach(piece => {
+      const mirrorY = GRID_SIZE - 1 - piece.boxY;
+      const mirrorPiece = finalPieces.find(p => 
+        p.id !== piece.id && 
+        p.boxY === mirrorY && 
+        p.boxX === piece.boxX
+      );
+      
+      if (mirrorPiece) {
+        const subMirrorY = SUB_GRID_STEPS - piece.subY;
+        const subPrecision = Math.abs(mirrorPiece.subY - subMirrorY);
+        const subXPrecision = Math.abs(mirrorPiece.subX - piece.subX);
+        
+        if (subPrecision <= 1 && subXPrecision <= 1) {
+          horizontalSymmetry += 15;
+        } else if (subPrecision <= 2 && subXPrecision <= 2) {
+          horizontalSymmetry += 10;
+        } else {
+          horizontalSymmetry += 5;
+        }
+      }
+    });
+    
+    // Section 4.1: Diagonal symmetry
+    let diagonalSymmetry = 0;
+    finalPieces.forEach(piece => {
+      // Main diagonal
+      const diagMirror1 = finalPieces.find(p => 
+        p.id !== piece.id && 
+        p.boxX === piece.boxY && 
+        p.boxY === piece.boxX
+      );
+      if (diagMirror1) diagonalSymmetry += 10;
+      
+      // Anti-diagonal
+      const diagMirror2 = finalPieces.find(p => 
+        p.id !== piece.id && 
+        p.boxX === (GRID_SIZE - 1 - piece.boxY) && 
+        p.boxY === (GRID_SIZE - 1 - piece.boxX)
+      );
+      if (diagMirror2) diagonalSymmetry += 10;
+    });
+    
+    totalScore = Math.min(verticalSymmetry + horizontalSymmetry + diagonalSymmetry, maxScore);
+    
+    // Section 4.2: Determine precision level
+    let precisionLevel = 'Low - Random or non-aligned placement';
+    if (totalScore >= 80) {
+      precisionLevel = 'High - Perfect symmetry with high precision';
+    } else if (totalScore >= 50) {
+      precisionLevel = 'Medium - General order but not perfectly mirrored';
+    }
+    
+    return {
+      overallScore: totalScore,
+      verticalSymmetry,
+      horizontalSymmetry,
+      diagonalSymmetry,
+      precisionLevel,
+      // Section 4.1: Ratio of symmetric alignment
+      symmetryRatios: {
+        vertical: (verticalSymmetry / 60) * 100,
+        horizontal: (horizontalSymmetry / 60) * 100,
+        diagonal: (diagonalSymmetry / 40) * 100
+      }
+    };
+  };
+
+  const getPieceInCell = (r, c) => {
+    return pieces.find(p => p.boxY === r && p.boxX === c);
+  };
+
+  const currentPiece = pieces.find(p => p.id === selectedId);
+  const allConfirmed = pieces.every(p => p.confirmed);
 
   return (
     <div className="layout-container">
-      <div className="app cleaning-app">
+      <div className="app symmetry-app">
+        {/* Section 5.1: Top - Game title and instructions */}
         <header>
-          <h1>Cleaning & Contamination Detection Game</h1>
-          <p>Clean the tiles using spray and wiper in the way that feels necessary to you.</p>
+          <h1>Symmetry Detection Game</h1>
+          <p>Arrange the buttons on the board in a way that feels visually balanced to you.</p>
         </header>
 
+        {/* Section 5.1: Center - Grid board with colored buttons */}
         <div className="board-wrapper">
-          <div className="cleaning-floor">
-            {board.map((tile, index) => (
-              <div
-                key={tile.id}
-                className={`tile ${selectedIdx === index ? 'selected' : ''} ${tile.isClean && tile.type !== 'empty' ? 'clean' : ''}`}
-                onClick={() => handleTileSelect(index)}
-              >
-                {renderContent(tile)}
-              </div>
-            ))}
+          <div className="symmetry-board">
+            {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, index) => {
+              const row = Math.floor(index / GRID_SIZE);
+              const col = index % GRID_SIZE;
+              const piece = getPieceInCell(row, col);
+
+              return (
+                <div key={index} className="cell">
+                  {piece && (
+                    <div
+                      className={`button ${piece.color} ${selectedId === piece.id ? 'selected' : ''} ${piece.confirmed ? 'confirmed' : ''}`}
+                      onClick={() => handleSelect(piece.id)}
+                      style={getPositionStyle(piece.subX, piece.subY)}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
+        {/* Section 5.1: Right/Bottom - Movement instruction panel */}
         <div className="panel">
           <div className="card">
-            <h3>Instructions</h3>
+            <h3>Movement</h3>
             <p className="instruction">
-              1. Select a dirty tile.<br/>
-              2. Click <strong>Spray</strong> first.<br/>
-              3. Then click <strong>Wiper</strong>.<br/>
-              Each Spray + Wipe = 1 Cleaning Unit.
+              Select a button and use your arrow keys to move it in small steps (1/8 of a box).
             </p>
           </div>
 
+          {/* Section 5.2: Coordinate display showing (box_x, box_y) and (inside_x, inside_y) */}
           <div className="card">
-            <h3>Cleaning Tools</h3>
-            <div className="tools">
-              <button
-                className={`tool ${activeTool === 'spray' ? 'active' : ''}`}
-                onClick={() => handleToolAction('spray')}
-                disabled={selectedIdx === null}
-              >
-                🧴 Spray
-              </button>
-              <button
-                className={`tool ${activeTool === 'wipe' ? 'active' : ''}`}
-                onClick={() => handleToolAction('wipe')}
-                disabled={selectedIdx === null}
-              >
-                🧹 Wiper
-              </button>
-            </div>
-          </div>
-
-          <div className="card">
-            <h3>Cleaning Status</h3>
-            {currentTile ? (
-              <>
-                <div className="feedback">
-                  Type: {currentTile.type.toUpperCase()}<br/>
-                  {currentTile.size > 0 && `Size: ${currentTile.size}px`}<br/>
-                  Required: ({currentTile.requiredUnits}w, {currentTile.requiredUnits}s)<br/>
-                  You used: ({currentTile.userWipes}w, {currentTile.userSprays}s)<br/>
-                  Progress: {currentTile.cleanedUnits}/{currentTile.requiredUnits}
-                </div>
-                
-                {currentTile.isClean && currentTile.type !== 'empty' && (
-                  <div className="clean-status">
-                    ✓ Tile Cleaned
-                  </div>
-                )}
-
-                {currentTile.overCleanedCount > 0 && (
-                  <div className="warning-msg">
-                    ⚠️ This tile is already clean.<br/>
-                    Over-cleaned: {currentTile.overCleanedCount} times.
-                  </div>
-                )}
-
-                {metrics.tileCheckCount[selectedIdx] > 3 && (
-                  <div className="warning-msg">
-                    Rechecked {metrics.tileCheckCount[selectedIdx]} times
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="feedback text-muted">
-                Select a tile to see details
+            <h3>Current Position</h3>
+            {currentPiece ? (
+              <div className="coords">
+                Box: ({currentPiece.boxX}, {currentPiece.boxY}) | Inside: ({currentPiece.subX}, {currentPiece.subY})
               </div>
+            ) : (
+              <div className="coords text-muted">Select a button</div>
             )}
           </div>
 
           <div className="card">
-            <h3>Progress</h3>
-            <div className="feedback">
-              Dirty: {dirtyCount} tiles<br/>
-              Cleaned: {cleanCount} tiles<br/>
-              Time: {((Date.now() - metrics.startTime) / 1000).toFixed(0)}s<br/>
-              Over-cleaning: {metrics.overCleaningInstances} times
+            <h3>Stats</h3>
+            <div className="coords">
+              Moves: {metrics.moves}<br/>
+              Time: {((Date.now() - metrics.startTime)/1000).toFixed(0)}s<br/>
+              Confirmed: {pieces.filter(p => p.confirmed).length}/{pieces.length}
             </div>
           </div>
 
+          {/* Section 5.1: Final - Confirm button and Reset button */}
           <div className="card">
             <h3>Actions</h3>
             <div className="actions">
-              <button
-                className="action-btn submit"
-                onClick={handleSubmit}
+              <button 
+                className="action-btn confirm"
+                onClick={handleConfirmPiece}
+                disabled={!selectedId}
               >
-                Submit
+                Confirm
               </button>
-              <button
+              <button 
                 className="action-btn reset"
                 onClick={handleReset}
               >
                 Reset
               </button>
             </div>
+            {allConfirmed && (
+              <button 
+                className="action-btn submit"
+                onClick={handleFinalSubmit}
+                style={{ marginTop: '12px', width: '100%' }}
+              >
+                Submit
+              </button>
+            )}
           </div>
         </div>
 
         <footer>
-          No alerts • No penalties • Behavioral observation only
+          Calm • Non-judgmental • No time pressure
         </footer>
       </div>
     </div>
   );
 }
 
-export default CleaningGame;
+export default SymmetryGame;
