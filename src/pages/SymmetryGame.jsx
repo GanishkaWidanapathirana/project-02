@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 
-// Constants (Section 2 & 3)
+// Constants
 const GRID_SIZE = 6;
-const SUB_GRID_STEPS = 8; // Section 3.2: 1/8 subdivisions per box (0 to 8)
+const SUB_GRID_STEPS = 8; 
 
 const INITIAL_PIECES = [
   { id: 1, boxX: 0, boxY: 0, subX: 4, subY: 4, color: 'btn-green', confirmed: false },
@@ -15,18 +15,27 @@ function SymmetryGame() {
   const [pieces, setPieces] = useState(INITIAL_PIECES);
   const [selectedId, setSelectedId] = useState(null);
   
-  // Section 4.1 & 6: Metrics for OCD Detection
+  // --- TIMING REFS (For precision feature extraction) ---
+  const gameStartTime = useRef(Date.now());
+  const selectionStartTime = useRef(null); 
+  const lastMoveTimeRef = useRef(Date.now());
+  const moveSequence = useRef([]); // Feature 10 (Sequence)
+
+  // --- METRICS STATE (Features 1-13) ---
   const [metrics, setMetrics] = useState({
-    moves: 0,
-    startTime: Date.now(),
-    moveHistory: [], // Movement patterns and frequency
-    movesPerButton: {}, // Number of moves per button
-    adjustmentCount: {}, // Repeated adjustments per button
-    timeSpentPerButton: {}, // Time tracking
-    selectionCount: {} // Track how many times each button was selected
+    total_moves: 0,             // Feature 1
+    moves_per_button: {},       // Feature 2
+    time_per_button: {},        // Feature 6
+    time_between_moves: [],     // Feature 7
+    idle_time_before_confirm: 0,// Feature 8
+    move_direction_counts: {    // Feature 11
+      ArrowUp: 0, ArrowDown: 0, ArrowLeft: 0, ArrowRight: 0 
+    },
+    fine_adjustment_moves: 0,   // Feature 12
+    coarse_moves: 0             // Feature 13
   });
 
-  // Section 3.1: Calculate position percentage for CSS (1/8 steps)
+  // Helper for CSS positioning
   const getPositionStyle = (subX, subY) => {
     const stepSize = 100 / SUB_GRID_STEPS;
     return {
@@ -36,14 +45,38 @@ function SymmetryGame() {
     };
   };
 
-  // Section 3.1 & 3.2: Handle Keyboard Movement with Boundary Conditions
+  // --- INTERACTION LOGIC ---
+
+  // Handle Button Selection (Feature 6: Time per button)
+  const handleSelect = (id) => {
+    const piece = pieces.find(p => p.id === id);
+    if (!piece.confirmed) {
+      const currentTime = Date.now();
+      
+      // If we were already selecting a different button, log that time
+      if (selectedId && selectedId !== id && selectionStartTime.current) {
+        const duration = (currentTime - selectionStartTime.current) / 1000;
+        setMetrics(prev => ({
+          ...prev,
+          time_per_button: {
+            ...prev.time_per_button,
+            [selectedId]: (prev.time_per_button[selectedId] || 0) + duration
+          }
+        }));
+      }
+
+      setSelectedId(id);
+      selectionStartTime.current = currentTime; 
+    }
+  };
+
+  // Handle Movement (Features 1, 2, 7, 10, 11, 12, 13)
   const handleKeyDown = useCallback((e) => {
     if (!selectedId) return;
     
-    // Prevent default arrow key behavior
-    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-      e.preventDefault();
-    }
+    // Filter only arrow keys
+    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    e.preventDefault();
 
     setPieces((prevPieces) => {
       return prevPieces.map((p) => {
@@ -53,65 +86,53 @@ function SymmetryGame() {
         let newSubY = p.subY;
         let moved = false;
 
-        // Section 3.2: Movement restrictions based on boundary conditions
-        // Inside-box coordinate: (0,0) to (8,8)
         switch (e.key) {
           case 'ArrowUp':
-            // Move up → decrease Y
-            if (newSubY > 0) {
-              newSubY--;
-              moved = true;
-            }
+            if (newSubY > 0) { newSubY--; moved = true; }
             break;
-
           case 'ArrowDown':
-            // Move down → increase Y
-            if (newSubY < SUB_GRID_STEPS-1) {
-              newSubY++;
-              moved = true;
-            }
+            if (newSubY < SUB_GRID_STEPS-1) { newSubY++; moved = true; }
             break;
-
           case 'ArrowLeft':
-            if (newSubX > 0) {
-              newSubX--;
-              moved = true;
-            }
+            if (newSubX > 0) { newSubX--; moved = true; }
             break;
-
           case 'ArrowRight':
-            if (newSubX < SUB_GRID_STEPS-1) {
-              newSubX++;
-              moved = true;
-            }
+            if (newSubX < SUB_GRID_STEPS-1) { newSubX++; moved = true; }
             break;
-
-          default:
-            return p;
+          default: return p;
         }
 
         if (moved) {
           const currentTime = Date.now();
+          const timeDelta = (currentTime - lastMoveTimeRef.current) / 1000; 
+          lastMoveTimeRef.current = currentTime;
           
-          // Section 6: Track movement patterns and frequency
+          // Feature 10: Log sequence
+          moveSequence.current.push(e.key);
+
+          // Feature 12 vs 13 Logic
+          // In this game, all moves are 1/8th step (Fine). 
+          // Coarse would be a full grid jump (not implemented in controls, but tracked).
+          const isFine = true; 
+
           setMetrics(prev => ({
             ...prev,
-            moves: prev.moves + 1,
-            moveHistory: [...prev.moveHistory, {
-              pieceId: p.id,
-              timestamp: currentTime,
-              from: { boxX: p.boxX, boxY: p.boxY, subX: p.subX, subY: p.subY },
-              to: { boxX: p.boxX, boxY: p.boxY, subX: newSubX, subY: newSubY },
-              direction: e.key
-            }],
-            movesPerButton: {
-              ...prev.movesPerButton,
-              [p.id]: (prev.movesPerButton[p.id] || 0) + 1
+            total_moves: prev.total_moves + 1, // Feature 1
+            
+            moves_per_button: { // Feature 2
+              ...prev.moves_per_button,
+              [p.id]: (prev.moves_per_button[p.id] || 0) + 1
             },
-            adjustmentCount: {
-              ...prev.adjustmentCount,
-              [p.id]: (prev.adjustmentCount[p.id] || 0) + 1
-            }
+            
+            time_between_moves: [...prev.time_between_moves, timeDelta], // Feature 7
+            
+            move_direction_counts: { // Feature 11
+              ...prev.move_direction_counts,
+              [e.key]: (prev.move_direction_counts[e.key] || 0) + 1
+            },
+
+            fine_adjustment_moves: isFine ? prev.fine_adjustment_moves + 1 : prev.fine_adjustment_moves, // Feature 12
+            coarse_moves: !isFine ? prev.coarse_moves + 1 : prev.coarse_moves // Feature 13
           }));
         }
 
@@ -125,72 +146,62 @@ function SymmetryGame() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // Section 3.1: Select button by clicking
-  const handleSelect = (id) => {
-    const piece = pieces.find(p => p.id === id);
-    if (!piece.confirmed) {
-      const previousId = selectedId;
-      setSelectedId(id);
-      
-      // Track selection count (anxiety-driven corrections indicator)
-      setMetrics(prev => ({
-        ...prev,
-        selectionCount: {
-          ...prev.selectionCount,
-          [id]: (prev.selectionCount[id] || 0) + 1
-        }
-      }));
-      
-      // Track time spent per button
-      if (previousId && previousId !== id) {
-        setMetrics(prev => ({
-          ...prev,
-          timeSpentPerButton: {
-            ...prev.timeSpentPerButton,
-            [previousId]: (prev.timeSpentPerButton[previousId] || 0) + (Date.now() - prev.startTime)
-          }
-        }));
-      }
-    }
-  };
-
-  const handleReset = () => {
-    setPieces(INITIAL_PIECES);
-    setMetrics({ 
-      moves: 0, 
-      startTime: Date.now(), 
-      moveHistory: [],
-      movesPerButton: {},
-      adjustmentCount: {},
-      timeSpentPerButton: {},
-      selectionCount: {}
-    });
-    setSelectedId(null);
-  };
-
-  // Section 3.3: Confirm placement - button becomes fixed
+  // Handle Confirmation (Feature 8: Idle time before confirm)
   const handleConfirmPiece = () => {
     if (!selectedId) {
       alert('Please select a piece first');
       return;
     }
 
+    const currentTime = Date.now();
+    
+    // Feature 8: Time between last arrow key and confirm click
+    const idleTime = (currentTime - lastMoveTimeRef.current) / 1000;
+
+    // Feature 6: Finalize interaction time for this button
+    let duration = 0;
+    if (selectionStartTime.current) {
+      duration = (currentTime - selectionStartTime.current) / 1000;
+    }
+
+    setMetrics(prev => ({
+      ...prev,
+      idle_time_before_confirm: idleTime, // Update latest idle time
+      time_per_button: {
+        ...prev.time_per_button,
+        [selectedId]: (prev.time_per_button[selectedId] || 0) + duration
+      }
+    }));
+
     setPieces(prev => prev.map(p => 
       p.id === selectedId ? { ...p, confirmed: true } : p
     ));
     
-    // Track time for this button
-    setMetrics(prev => ({
-      ...prev,
-      timeSpentPerButton: {
-        ...prev.timeSpentPerButton,
-        [selectedId]: (prev.timeSpentPerButton[selectedId] || 0) + (Date.now() - prev.startTime)
-      }
-    }));
+    setSelectedId(null);
+    selectionStartTime.current = null;
+  };
+
+  const handleReset = () => {
+    setPieces(INITIAL_PIECES);
+    gameStartTime.current = Date.now();
+    lastMoveTimeRef.current = Date.now();
+    selectionStartTime.current = null;
+    moveSequence.current = [];
     
+    setMetrics({ 
+      total_moves: 0,
+      moves_per_button: {},
+      time_per_button: {},
+      time_between_moves: [],
+      idle_time_before_confirm: 0,
+      move_direction_counts: { ArrowUp: 0, ArrowDown: 0, ArrowLeft: 0, ArrowRight: 0 },
+      fine_adjustment_moves: 0,
+      coarse_moves: 0
+    });
     setSelectedId(null);
   };
 
+  // --- FINAL SUBMISSION (Features 3, 4, 5 & Payload Construction) ---
   const handleFinalSubmit = () => {
     const allConfirmed = pieces.every(p => p.confirmed);
     if (!allConfirmed) {
@@ -198,184 +209,42 @@ function SymmetryGame() {
       return;
     }
 
-    const timeTaken = (Date.now() - metrics.startTime) / 1000;
+    // Feature 5: Total Time
+    const total_time = (Date.now() - gameStartTime.current) / 1000;
     
-    // Section 4: Calculate symmetry detection metrics
-    const symmetryAnalysis = calculateSymmetryScore(pieces);
-    
-    // Section 6 & 7: Prepare complete data for OCD detection model
-    const payload = {
-      sessionId: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      gameName: 'Symmetry Detection Game',
-      timeTakenSeconds: timeTaken,
-      totalMoves: metrics.moves,
+    // Feature 3: Mean moves per button
+    const mean_moves_per_button = metrics.total_moves / pieces.length;
+
+    // Feature 4: Max moves single button
+    const movesArray = Object.values(metrics.moves_per_button);
+    const max_moves_single_button = movesArray.length > 0 ? Math.max(...movesArray) : 0;
+
+    // Construct Payload exactly as requested in "Recommended Data Logging Format"
+    const finalPayload = {
+      total_moves: metrics.total_moves,
+      moves_per_button: metrics.moves_per_button,
+      mean_moves_per_button: parseFloat(mean_moves_per_button.toFixed(2)),
+      max_moves_single_button: max_moves_single_button,
+      total_time: parseFloat(total_time.toFixed(2)),
+      time_per_button: metrics.time_per_button, // Feature 6
+      time_between_moves: metrics.time_between_moves, // Feature 7
+      idle_time_before_confirm: parseFloat(metrics.idle_time_before_confirm.toFixed(2)), // Feature 8 & 9
+      move_sequence_length: moveSequence.current.length, // Feature 10
+      move_direction_counts: { // Feature 11 (Mapped to simple keys)
+        up: metrics.move_direction_counts.ArrowUp,
+        down: metrics.move_direction_counts.ArrowDown,
+        left: metrics.move_direction_counts.ArrowLeft,
+        right: metrics.move_direction_counts.ArrowRight
+      },
+      fine_adjustment_moves: metrics.fine_adjustment_moves, // Feature 12
+      coarse_moves: metrics.coarse_moves, // Feature 13
       
-      // Section 4.1: Final coordinates of every button
-      finalPositions: pieces.map(p => ({
-        id: p.id,
-        color: p.color,
-        boxCoordinate: { x: p.boxX, y: p.boxY },
-        insideBoxCoordinate: { x: p.subX, y: p.subY },
-        confirmed: p.confirmed
-      })),
-      
-      // Section 4.1 & 6: Number of moves per button
-      movesPerButton: metrics.movesPerButton,
-      
-      // Section 6: Movement patterns and frequency
-      moveHistory: metrics.moveHistory,
-      
-      // Section 7: Repeated adjustments (anxiety-driven corrections)
-      adjustmentCount: metrics.adjustmentCount,
-      selectionCount: metrics.selectionCount,
-      
-      // Section 6: Time spent achieving alignment
-      timeSpentPerButton: metrics.timeSpentPerButton,
-      
-      // Section 4.1 & 4.2: Symmetry scoring
-      symmetryAnalysis,
-      
-      // Section 7: Behavioral profile for OCD detection
-      behaviorProfile: {
-        averageMovesPerButton: (metrics.moves / pieces.length).toFixed(2),
-        totalAdjustments: Object.values(metrics.adjustmentCount).reduce((a, b) => a + b, 0),
-        symmetryScore: symmetryAnalysis.overallScore,
-        precisionLevel: symmetryAnalysis.precisionLevel,
-        timeSpent: timeTaken,
-        obsessionIndicator: calculateObsessionScore(metrics, symmetryAnalysis)
-      }
+      // Backend Requirements (Positions)
+      final_positions: pieces
     };
 
-    console.log("SENDING TO BACKEND (Section 6 - OCD Detection):", payload);
-    alert(`Submission Complete!\n\nMoves: ${metrics.moves}\nTime: ${timeTaken.toFixed(1)}s\nSymmetry Score: ${symmetryAnalysis.overallScore}%\nPrecision: ${symmetryAnalysis.precisionLevel}\nOCD Indicator: ${payload.behaviorProfile.obsessionIndicator}/10`);
-  };
-
-  // Section 7: Calculate obsession score based on behavior
-  const calculateObsessionScore = (metrics, symmetryAnalysis) => {
-    let score = 0;
-    
-    // High number of moves indicates perfectionism
-    const avgMoves = metrics.moves / pieces.length;
-    if (avgMoves > 50) score += 3;
-    else if (avgMoves > 30) score += 2;
-    else if (avgMoves > 15) score += 1;
-    
-    // Multiple selections of same button
-    const maxSelections = Math.max(...Object.values(metrics.selectionCount));
-    if (maxSelections > 10) score += 2;
-    else if (maxSelections > 5) score += 1;
-    
-    // High symmetry score with high precision indicates compulsion
-    if (symmetryAnalysis.overallScore > 80 && avgMoves > 20) score += 3;
-    else if (symmetryAnalysis.overallScore > 60 && avgMoves > 15) score += 2;
-    
-    // Time spent (excessive time on alignment)
-    const totalTime = (Date.now() - metrics.startTime) / 1000;
-    if (totalTime > 300) score += 2; // 5+ minutes
-    
-    return Math.min(score, 10);
-  };
-
-  // Section 4.1 & 4.2: Calculate symmetry along vertical, horizontal, and diagonal axes
-  const calculateSymmetryScore = (finalPieces) => {
-    let totalScore = 0;
-    const maxScore = 100;
-    
-    // Section 4.1: Vertical axis symmetry
-    let verticalSymmetry = 0;
-    finalPieces.forEach(piece => {
-      const mirrorX = GRID_SIZE - 1 - piece.boxX;
-      const mirrorPiece = finalPieces.find(p => 
-        p.id !== piece.id && 
-        p.boxX === mirrorX && 
-        p.boxY === piece.boxY
-      );
-      
-      if (mirrorPiece) {
-        // Check sub-grid precision (Section 4.2)
-        const subMirrorX = SUB_GRID_STEPS - piece.subX;
-        const subPrecision = Math.abs(mirrorPiece.subX - subMirrorX);
-        const subYPrecision = Math.abs(mirrorPiece.subY - piece.subY);
-        
-        if (subPrecision <= 1 && subYPrecision <= 1) {
-          verticalSymmetry += 15; // High precision
-        } else if (subPrecision <= 2 && subYPrecision <= 2) {
-          verticalSymmetry += 10; // Medium precision
-        } else {
-          verticalSymmetry += 5; // General alignment
-        }
-      }
-    });
-    
-    // Section 4.1: Horizontal axis symmetry
-    let horizontalSymmetry = 0;
-    finalPieces.forEach(piece => {
-      const mirrorY = GRID_SIZE - 1 - piece.boxY;
-      const mirrorPiece = finalPieces.find(p => 
-        p.id !== piece.id && 
-        p.boxY === mirrorY && 
-        p.boxX === piece.boxX
-      );
-      
-      if (mirrorPiece) {
-        const subMirrorY = SUB_GRID_STEPS - piece.subY;
-        const subPrecision = Math.abs(mirrorPiece.subY - subMirrorY);
-        const subXPrecision = Math.abs(mirrorPiece.subX - piece.subX);
-        
-        if (subPrecision <= 1 && subXPrecision <= 1) {
-          horizontalSymmetry += 15;
-        } else if (subPrecision <= 2 && subXPrecision <= 2) {
-          horizontalSymmetry += 10;
-        } else {
-          horizontalSymmetry += 5;
-        }
-      }
-    });
-    
-    // Section 4.1: Diagonal symmetry
-    let diagonalSymmetry = 0;
-    finalPieces.forEach(piece => {
-      // Main diagonal
-      const diagMirror1 = finalPieces.find(p => 
-        p.id !== piece.id && 
-        p.boxX === piece.boxY && 
-        p.boxY === piece.boxX
-      );
-      if (diagMirror1) diagonalSymmetry += 10;
-      
-      // Anti-diagonal
-      const diagMirror2 = finalPieces.find(p => 
-        p.id !== piece.id && 
-        p.boxX === (GRID_SIZE - 1 - piece.boxY) && 
-        p.boxY === (GRID_SIZE - 1 - piece.boxX)
-      );
-      if (diagMirror2) diagonalSymmetry += 10;
-    });
-    
-    totalScore = Math.min(verticalSymmetry + horizontalSymmetry + diagonalSymmetry, maxScore);
-    
-    // Section 4.2: Determine precision level
-    let precisionLevel = 'Low - Random or non-aligned placement';
-    if (totalScore >= 80) {
-      precisionLevel = 'High - Perfect symmetry with high precision';
-    } else if (totalScore >= 50) {
-      precisionLevel = 'Medium - General order but not perfectly mirrored';
-    }
-    
-    return {
-      overallScore: totalScore,
-      verticalSymmetry,
-      horizontalSymmetry,
-      diagonalSymmetry,
-      precisionLevel,
-      // Section 4.1: Ratio of symmetric alignment
-      symmetryRatios: {
-        vertical: (verticalSymmetry / 60) * 100,
-        horizontal: (horizontalSymmetry / 60) * 100,
-        diagonal: (diagonalSymmetry / 40) * 100
-      }
-    };
+    console.log("SENDING TO BACKEND:", finalPayload);
+    alert(`Submission Complete!\nMoves: ${metrics.total_moves}\nCheck Console for Data Payload.`);
   };
 
   const getPieceInCell = (r, c) => {
@@ -388,13 +257,11 @@ function SymmetryGame() {
   return (
     <div className="layout-container">
       <div className="app symmetry-app">
-        {/* Section 5.1: Top - Game title and instructions */}
         <header>
           <h1>Symmetry Detection Game</h1>
           <p>Arrange the buttons on the board in a way that feels visually balanced to you.</p>
         </header>
 
-        {/* Section 5.1: Center - Grid board with colored buttons */}
         <div className="board-wrapper">
           <div className="symmetry-board">
             {Array.from({ length: GRID_SIZE * GRID_SIZE }).map((_, index) => {
@@ -417,7 +284,6 @@ function SymmetryGame() {
           </div>
         </div>
 
-        {/* Section 5.1: Right/Bottom - Movement instruction panel */}
         <div className="panel">
           <div className="card">
             <h3>Movement</h3>
@@ -426,7 +292,6 @@ function SymmetryGame() {
             </p>
           </div>
 
-          {/* Section 5.2: Coordinate display showing (box_x, box_y) and (inside_x, inside_y) */}
           <div className="card">
             <h3>Current Position</h3>
             {currentPiece ? (
@@ -441,13 +306,12 @@ function SymmetryGame() {
           <div className="card">
             <h3>Stats</h3>
             <div className="coords">
-              Moves: {metrics.moves}<br/>
-              Time: {((Date.now() - metrics.startTime)/1000).toFixed(0)}s<br/>
+              Moves: {metrics.total_moves}<br/>
+              Time: {((Date.now() - gameStartTime.current)/1000).toFixed(0)}s<br/>
               Confirmed: {pieces.filter(p => p.confirmed).length}/{pieces.length}
             </div>
           </div>
 
-          {/* Section 5.1: Final - Confirm button and Reset button */}
           <div className="card">
             <h3>Actions</h3>
             <div className="actions">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // Section 2 & 5: Scenarios with unsafe/safe states
 const SCENARIOS = [
@@ -37,17 +37,37 @@ function CheckingGame() {
   const [hoveredItem, setHoveredItem] = useState(null);
   const [hoverStartTime, setHoverStartTime] = useState(null);
   
+  // Ref for Feature 5 (Delay before clicking)
+  const pageEnterTime = useRef(Date.now());
+
   // Section 4.1: Metrics Collected
   const [metrics, setMetrics] = useState({
     startTime: Date.now(),
-    clickCounts: {}, // Number of times each item clicked
-    pageVisits: {}, // How often user returns to pages
-    hoverTimes: {}, // Time spent staring at each item
-    recheckDelays: {}, // Time between rechecks
-    checkingSequence: [], // Sequence patterns
-    revisitCount: 0, // Total revisits to already safe items
-    lastClickTime: {},
-    itemFirstSecured: {}
+    
+    // Feature 1: Total Checks
+    totalChecks: 0,
+    
+    // Feature 2: Total Rechecks
+    totalRechecks: 0,
+    
+    // Feature 3: Page Revisits
+    uniquePagesVisited: new Set([1]), // Start on page 1
+    revisitedPageCount: 0,
+    
+    // Feature 4: Time Taken to Secure All
+    timeAllSecured: null,
+
+    // Feature 5: Delays
+    firstClickDelays: [], // List of delays in ms
+    itemsClickedOnPage: new Set(), // To track first clicks per page load
+
+    // Feature 6: Entropy (Sequence)
+    checkingSequenceIds: [], // Array of item IDs in order
+
+    // Legacy metrics for UI
+    clickCounts: {}, 
+    pageVisits: { 1: 1 }, 
+    revisitCount: 0, 
   });
 
   // Initialize all items as unsafe
@@ -69,23 +89,22 @@ function CheckingGame() {
     setMetrics(prev => ({ ...prev, pageVisits: visits }));
   }, []);
 
-  // Section 4.1: Track hover time (time spent staring)
+  // Update page enter time when page changes (Feature 5)
+  useEffect(() => {
+    pageEnterTime.current = Date.now();
+    setMetrics(prev => ({
+        ...prev,
+        itemsClickedOnPage: new Set() // Reset local tracking for delays
+    }));
+  }, [currentPage]);
+
+  // Section 4.1: Track hover time
   const handleMouseEnter = (itemKey) => {
     setHoveredItem(itemKey);
     setHoverStartTime(Date.now());
   };
 
   const handleMouseLeave = (itemKey) => {
-    if (hoverStartTime) {
-      const hoverDuration = Date.now() - hoverStartTime;
-      setMetrics(prev => ({
-        ...prev,
-        hoverTimes: {
-          ...prev.hoverTimes,
-          [itemKey]: (prev.hoverTimes[itemKey] || 0) + hoverDuration
-        }
-      }));
-    }
     setHoveredItem(null);
     setHoverStartTime(null);
   };
@@ -94,51 +113,62 @@ function CheckingGame() {
   const handleItemClick = (itemKey, scenarioId) => {
     const currentTime = Date.now();
     const currentState = itemStates[itemKey];
-    const wasAlreadySafe = currentState === 'safe';
+    const isSecured = currentState === 'safe';
     
-    // Section 3.3: Toggle state (or keep safe if already safe)
-    const newState = currentState === 'unsafe' ? 'safe' : 'safe';
-    
-    setItemStates(prev => ({
-      ...prev,
-      [itemKey]: newState
-    }));
+    // Feature 5: Delay before clicking unsafe items
+    // If this item hasn't been clicked since entering the page, log the delay
+    let currentDelay = null;
+    if (!metrics.itemsClickedOnPage.has(itemKey)) {
+        currentDelay = (currentTime - pageEnterTime.current) / 1000; // seconds
+    }
 
-    // Section 4.1: Track clicks and rechecking behavior
+    // Toggle state (in this game, clicking always makes it safe/keeps it safe)
+    const newState = 'safe'; 
+    
+    const newStates = {
+      ...itemStates,
+      [itemKey]: newState
+    };
+    setItemStates(newStates);
+
+    // Check if ALL items are now secure (Feature 4)
+    const allNowSafe = Object.values(newStates).every(s => s === 'safe');
+    const timeToSecure = allNowSafe ? (currentTime - metrics.startTime) / 1000 : metrics.timeAllSecured;
+
+    // Update Metrics
     setMetrics(prev => {
-      const clickCount = (prev.clickCounts[itemKey] || 0) + 1;
-      const lastClick = prev.lastClickTime[itemKey];
-      const recheckDelay = lastClick ? currentTime - lastClick : null;
+      // Feature 1: Total Checks (Every click counts)
+      const newTotalChecks = prev.totalChecks + 1;
+
+      // Feature 2: Total Rechecks (Clicking something already safe)
+      const newTotalRechecks = isSecured ? prev.totalRechecks + 1 : prev.totalRechecks;
+
+      // Feature 5: Add delay if applicable
+      const newDelays = currentDelay !== null 
+        ? [...prev.firstClickDelays, currentDelay] 
+        : prev.firstClickDelays;
       
-      // Track if this is a revisit to already safe item
-      const isRevisit = wasAlreadySafe;
-      
+      const newClickedSet = new Set(prev.itemsClickedOnPage);
+      newClickedSet.add(itemKey);
+
+      // Feature 6: Track Sequence
+      const newSequence = [...prev.checkingSequenceIds, itemKey];
+
       return {
         ...prev,
+        totalChecks: newTotalChecks,
+        totalRechecks: newTotalRechecks,
+        timeAllSecured: timeToSecure,
+        firstClickDelays: newDelays,
+        itemsClickedOnPage: newClickedSet,
+        checkingSequenceIds: newSequence,
+
+        // Legacy UI updates
         clickCounts: {
           ...prev.clickCounts,
-          [itemKey]: clickCount
+          [itemKey]: (prev.clickCounts[itemKey] || 0) + 1
         },
-        checkingSequence: [...prev.checkingSequence, {
-          itemKey,
-          scenarioId,
-          timestamp: currentTime,
-          wasAlreadySafe,
-          clickNumber: clickCount
-        }],
-        recheckDelays: recheckDelay ? {
-          ...prev.recheckDelays,
-          [itemKey]: [...(prev.recheckDelays[itemKey] || []), recheckDelay]
-        } : prev.recheckDelays,
-        lastClickTime: {
-          ...prev.lastClickTime,
-          [itemKey]: currentTime
-        },
-        revisitCount: prev.revisitCount + (isRevisit ? 1 : 0),
-        itemFirstSecured: !prev.itemFirstSecured[itemKey] ? {
-          ...prev.itemFirstSecured,
-          [itemKey]: currentTime
-        } : prev.itemFirstSecured
+        revisitCount: prev.revisitCount + (isSecured ? 1 : 0),
       };
     });
   };
@@ -160,15 +190,25 @@ function CheckingGame() {
     }
   };
 
-  // Section 4.1: Track page revisits
+  // Section 4.1: Track page revisits (Feature 3)
   const trackPageVisit = (pageId) => {
-    setMetrics(prev => ({
-      ...prev,
-      pageVisits: {
-        ...prev.pageVisits,
-        [pageId]: (prev.pageVisits[pageId] || 0) + 1
-      }
-    }));
+    setMetrics(prev => {
+        const isRevisit = prev.uniquePagesVisited.has(pageId);
+        const newUnique = new Set(prev.uniquePagesVisited);
+        newUnique.add(pageId);
+
+        return {
+            ...prev,
+            uniquePagesVisited: newUnique,
+            revisitedPageCount: isRevisit ? prev.revisitedPageCount + 1 : prev.revisitedPageCount,
+            
+            // Legacy UI
+            pageVisits: {
+                ...prev.pageVisits,
+                [pageId]: (prev.pageVisits[pageId] || 0) + 1
+            }
+        };
+    });
   };
 
   const handleReset = () => {
@@ -181,35 +221,85 @@ function CheckingGame() {
     });
     setItemStates(initialStates);
     setCurrentPage(0);
-    
-    const visits = {};
-    PAGES.forEach(page => {
-      visits[page.id] = page.id === PAGES[0].id ? 1 : 0;
-    });
+    pageEnterTime.current = Date.now();
     
     setMetrics({
       startTime: Date.now(),
+      totalChecks: 0,
+      totalRechecks: 0,
+      uniquePagesVisited: new Set([1]),
+      revisitedPageCount: 0,
+      timeAllSecured: null,
+      firstClickDelays: [],
+      itemsClickedOnPage: new Set(),
+      checkingSequenceIds: [],
       clickCounts: {},
-      pageVisits: visits,
-      hoverTimes: {},
-      recheckDelays: {},
-      checkingSequence: [],
+      pageVisits: { 1: 1 },
       revisitCount: 0,
-      lastClickTime: {},
-      itemFirstSecured: {}
     });
+  };
+
+  // Feature 6 Helper: Calculate Entropy
+  const calculateEntropy = (sequence) => {
+      if (sequence.length === 0) return 0;
+      
+      const frequencies = {};
+      sequence.forEach(id => {
+          frequencies[id] = (frequencies[id] || 0) + 1;
+      });
+
+      let entropy = 0;
+      const total = sequence.length;
+
+      Object.values(frequencies).forEach(count => {
+          const p = count / total;
+          entropy -= p * Math.log2(p);
+      });
+
+      return entropy;
   };
 
   // Generate Summary Report
   const handleSubmit = () => {
-    const timeTaken = (Date.now() - metrics.startTime) / 1000;
-    
-    // Calculate total safe items
-    const totalItems = Object.keys(itemStates).length;
-    const safeItems = Object.values(itemStates).filter(state => state === 'safe').length;
-    
-    console.log("SENDING TO BACKEND (Checking OCD Detection):");
-    alert(`Summary Report\n\nTime: ${timeTaken.toFixed(1)}s\n`);
+    // Feature 3: Page Revisit Frequency
+    const totalPages = PAGES.length; // Fixed at 3
+    const pageRevisitFrequency = metrics.revisitedPageCount / totalPages;
+
+    // Feature 5: Average Delay
+    const totalDelay = metrics.firstClickDelays.reduce((a, b) => a + b, 0);
+    const avgDelay = metrics.firstClickDelays.length > 0 
+        ? totalDelay / metrics.firstClickDelays.length 
+        : 0;
+
+    // Feature 6: Entropy
+    const entropy = calculateEntropy(metrics.checkingSequenceIds);
+
+    // Current Time fallback for Feature 4 if not all secured
+    const finalTime = (Date.now() - metrics.startTime) / 1000;
+    const timeTaken = metrics.timeAllSecured || finalTime;
+
+    const payload = {
+        // 1. Total Number of Checks
+        total_number_of_checks: metrics.totalChecks,
+
+        // 2. Total Number of Rechecks
+        total_number_of_rechecks: metrics.totalRechecks,
+
+        // 3. Page Revisit Frequency
+        page_revisit_frequency: parseFloat(pageRevisitFrequency.toFixed(2)),
+
+        // 4. Time Taken to Secure All Items
+        time_taken_to_secure_all_items: parseFloat(timeTaken.toFixed(2)),
+
+        // 5. Delay Before Clicking Unsafe Items (Average)
+        delay_before_clicking_unsafe_items: parseFloat(avgDelay.toFixed(2)),
+
+        // 6. Order of Checking Entropy
+        order_of_checking_entropy: parseFloat(entropy.toFixed(4))
+    };
+
+    console.log("SENDING TO BACKEND (Feature Extraction):", payload);
+    alert(`Summary Report Generated!\n\nChecks: ${metrics.totalChecks}\nRechecks: ${metrics.totalRechecks}\nEntropy: ${payload.order_of_checking_entropy}\n\nCheck console for full JSON.`);
   };
 
   const currentPageData = PAGES[currentPage];
@@ -295,7 +385,7 @@ function CheckingGame() {
             <div className="feedback">
               Page: {currentPage + 1}/{PAGES.length}<br/>
               Safe Items: {Object.values(itemStates).filter(s => s === 'safe').length}/{Object.keys(itemStates).length}<br/>
-              Total Checks: {Object.values(metrics.clickCounts).reduce((sum, count) => sum + count, 0)}<br/>
+              Total Checks: {metrics.totalChecks}<br/>
               Revisits: {metrics.revisitCount}<br/>
               Time: {((Date.now() - metrics.startTime) / 1000).toFixed(0)}s
             </div>

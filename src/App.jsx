@@ -77,7 +77,7 @@ const GameLayout = ({ children }) => {
         >
           {!isDashboard && (
             <Link
-              to="/"
+              to="/dashboard"
               style={{
                 textDecoration: 'none',
                 color: 'var(--text-soft)',
