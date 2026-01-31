@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
+// --- SCENARIO DATA CONSTANTS ---
+
 // Section 3: Module 1 - Ambiguous Situations Test
 const MODULE_1_SCENARIOS = [
   {
@@ -173,17 +175,18 @@ const MODULE_3_SCENARIOS = [
 ];
 
 // Section 6: Module 4 - Rate Unsafe Situations (0-100%)
+// Note: These scenarios are actually mostly "safe" or low risk, designed to test overestimation.
 const MODULE_4_SCENARIOS = [
-  { id: 'rate-1', text: 'A worker is standing on a stable ladder.', type: 'slider' },
-  { id: 'rate-2', text: 'A plug is connected normally to an outlet.', type: 'slider' },
-  { id: 'rate-3', text: 'A man is carrying a box with one hand.', type: 'slider' },
-  { id: 'rate-4', text: "There's a wet floor with a warning sign.", type: 'slider' },
-  { id: 'rate-5', text: 'An electrical panel is closed and locked.', type: 'slider' },
-  { id: 'rate-6', text: 'A worker is using gloves but no helmet.', type: 'slider' },
-  { id: 'rate-7', text: 'A chair is blocking the walkway slightly.', type: 'slider' },
-  { id: 'rate-8', text: 'A light bulb is flickering.', type: 'slider' },
-  { id: 'rate-9', text: 'A box is near the edge of a table.', type: 'slider' },
-  { id: 'rate-10', text: 'A phone charger is near a water bottle.', type: 'slider' }
+  { id: 'rate-1', text: 'A worker is standing on a stable ladder.', type: 'slider', expectedSafe: 10 },
+  { id: 'rate-2', text: 'A plug is connected normally to an outlet.', type: 'slider', expectedSafe: 0 },
+  { id: 'rate-3', text: 'A man is carrying a box with one hand.', type: 'slider', expectedSafe: 15 },
+  { id: 'rate-4', text: "There's a wet floor with a warning sign.", type: 'slider', expectedSafe: 20 },
+  { id: 'rate-5', text: 'An electrical panel is closed and locked.', type: 'slider', expectedSafe: 0 },
+  { id: 'rate-6', text: 'A worker is using gloves but no helmet.', type: 'slider', expectedSafe: 25 },
+  { id: 'rate-7', text: 'A chair is blocking the walkway slightly.', type: 'slider', expectedSafe: 10 },
+  { id: 'rate-8', text: 'A light bulb is flickering.', type: 'slider', expectedSafe: 5 },
+  { id: 'rate-9', text: 'A box is near the edge of a table.', type: 'slider', expectedSafe: 15 },
+  { id: 'rate-10', text: 'A phone charger is near a water bottle.', type: 'slider', expectedSafe: 10 }
 ];
 
 const ALL_SCENARIOS = [
@@ -192,6 +195,129 @@ const ALL_SCENARIOS = [
   ...MODULE_3_SCENARIOS.map(s => ({ ...s, module: 3, moduleName: 'Safety Analysis' })),
   ...MODULE_4_SCENARIOS.map(s => ({ ...s, module: 4, moduleName: 'Risk Rating' }))
 ];
+
+// --- FEATURE EXTRACTION UTILITY ---
+const extractGameFeatures = (finalResponses, finalTimes) => {
+  const responses = Object.values(finalResponses);
+  const totalResponses = responses.length;
+  
+  // Helpers
+  const getChoiceResponses = () => responses.filter(r => r.type === 'choice');
+  const getSliderResponses = () => responses.filter(r => r.type === 'rating');
+  const getByModule = (modNum) => {
+    // We map back to IDs to find the module, or filter ALL_SCENARIOS if available
+    // Easier way: iterate ALL_SCENARIOS and grab corresponding response
+    return ALL_SCENARIOS.filter(s => s.module === modNum).map(s => ({
+      scenario: s,
+      response: finalResponses[s.id]
+    })).filter(item => item.response);
+  };
+
+  const mod1Data = getByModule(1); // Ambiguous
+  const mod2Data = getByModule(2); // Moral
+  const mod3Data = getByModule(3); // Safety
+  const mod4Data = getByModule(4); // Risk Slider
+
+  // --- 1. Response Choice Patterns ---
+  const choiceResponses = getChoiceResponses();
+  const neutralCount = choiceResponses.filter(r => r.category === 'neutral' || r.category === 'normal').length;
+  const catastrophicCount = choiceResponses.filter(r => r.severity === 3).length;
+  
+  const responsePatterns = {
+    percentNeutral: ((neutralCount / choiceResponses.length) * 100).toFixed(1),
+    percentCatastrophic: ((catastrophicCount / choiceResponses.length) * 100).toFixed(1),
+  };
+
+  // --- 2. Frequency of Catastrophic Interpretations ---
+  // Formula: (Number of catastrophic responses) / (Total responses)
+  const catastrophicFrequency = (catastrophicCount / choiceResponses.length).toFixed(2);
+
+  // --- 3. Degree of Self-Blame ---
+  // Focus on Mod 1 (Ambiguous) & Mod 2 (Moral)
+  const selfBlameRelevant = [...mod1Data, ...mod2Data];
+  const selfBlameSum = selfBlameRelevant.reduce((sum, item) => sum + item.response.severity, 0);
+  const meanSelfBlameScore = (selfBlameSum / selfBlameRelevant.length).toFixed(2);
+  const maxSelfBlameIntensity = Math.max(...selfBlameRelevant.map(i => i.response.severity));
+
+  // --- 4. Severity of Perceived Danger ---
+  // Part A: Categorical Safety (Mod 3)
+  const safetySum = mod3Data.reduce((sum, item) => sum + item.response.severity, 0);
+  const avgSafetySeverity = (safetySum / mod3Data.length).toFixed(2);
+  
+  // Part B: Risk Rating (Mod 4 - Slider) - Deviation from "Realistic" Risk
+  let overestimationTotal = 0;
+  mod4Data.forEach(item => {
+    const userRating = item.response.value; // 0-100
+    const expectedSafe = item.scenario.expectedSafe || 10; // Default benign baseline
+    // Only count if user exceeds expected (overestimation)
+    if (userRating > expectedSafe) {
+      overestimationTotal += (userRating - expectedSafe);
+    }
+  });
+  const overestimationIndex = (overestimationTotal / mod4Data.length).toFixed(2); // Average points above baseline
+
+  // --- 5. Response Time per Scenario ---
+  const times = Object.values(finalTimes);
+  const meanResponseTime = (times.reduce((a, b) => a + b, 0) / times.length).toFixed(0);
+  
+  // Calculate Variance
+  const varianceResponseTime = (times.reduce((sum, t) => sum + Math.pow(t - meanResponseTime, 2), 0) / times.length).toFixed(0);
+  
+  // Count delayed responses (> 5 seconds as arbitrary threshold for "rumination" in this context)
+  const delayedResponseFreq = times.filter(t => t > 5000).length;
+
+  // --- 6. Moral Guilt Sensitivity ---
+  // Specific to Module 2
+  const moralSum = mod2Data.reduce((sum, item) => sum + item.response.severity, 0);
+  const moralGuiltScore = moralSum; // Raw sum
+  const excessiveGuiltRatio = (mod2Data.filter(item => item.response.severity >= 2).length / mod2Data.length).toFixed(2);
+
+  // --- 7. Reassurance-Seeking Patterns ---
+  // Checking categories (mild-checking, mild-doubt) or specific checking text keywords
+  // Categories: 'mild-checking', 'severe-checking', 'mild-doubt', 'severe-doubt'
+  // Or in Safety module: options containing "check", "verify"
+  let reassuranceCount = 0;
+  
+  [...mod1Data, ...mod3Data].forEach(item => {
+    const cat = item.response.category || '';
+    const txt = item.response.text || '';
+    
+    if (cat.includes('checking') || cat.includes('doubt')) {
+      reassuranceCount++;
+    } else if (item.scenario.module === 3 && (txt.includes('check') || txt.includes('verify'))) {
+      // In module 3, options b usually imply checking (e.g., "I should verify it's truly off")
+      reassuranceCount++;
+    }
+  });
+
+  const reassuranceFrequency = reassuranceCount;
+
+  return {
+    responsePatterns,
+    catastrophicFrequency,
+    degreeOfSelfBlame: {
+      meanScore: meanSelfBlameScore,
+      maxIntensity: maxSelfBlameIntensity
+    },
+    perceivedDanger: {
+      avgSeverityChoice: avgSafetySeverity,
+      overestimationIndex: overestimationIndex, // 0-100 scale deviation
+    },
+    responseTimeMetrics: {
+      meanTimeMs: meanResponseTime,
+      varianceMs: varianceResponseTime,
+      delayedResponses: delayedResponseFreq
+    },
+    moralGuilt: {
+      totalScore: moralGuiltScore,
+      excessiveGuiltRatio: excessiveGuiltRatio
+    },
+    reassuranceSeeking: {
+      frequency: reassuranceFrequency,
+      dependencyIndex: (reassuranceFrequency / (mod1Data.length + mod3Data.length)).toFixed(2)
+    }
+  };
+};
 
 function IntrusiveThoughtsGame() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -248,13 +374,10 @@ function IntrusiveThoughtsGame() {
     }));
 
     if (isLastScenario) {
-      handleSubmit({
-        ...responses,
-        [currentScenario.id]: response
-      }, {
-        ...responseTimes,
-        [currentScenario.id]: responseTime
-      });
+      // Pass the updated state directly to submit to avoid stale state issues
+      const finalResponses = { ...responses, [currentScenario.id]: response };
+      const finalTimes = { ...responseTimes, [currentScenario.id]: responseTime };
+      handleSubmit(finalResponses, finalTimes);
     } else {
       setCurrentIndex(prev => prev + 1);
     }
@@ -263,121 +386,41 @@ function IntrusiveThoughtsGame() {
   const handleSubmit = (finalResponses, finalTimes) => {
     const timeTaken = (Date.now() - startTime) / 1000;
     
-    // Section 8: Calculate cognitive distortion scores
-    const module1Responses = MODULE_1_SCENARIOS.map(s => finalResponses[s.id]).filter(Boolean);
-    const module2Responses = MODULE_2_SCENARIOS.map(s => finalResponses[s.id]).filter(Boolean);
-    const module3Responses = MODULE_3_SCENARIOS.map(s => finalResponses[s.id]).filter(Boolean);
-    const module4Responses = MODULE_4_SCENARIOS.map(s => finalResponses[s.id]).filter(Boolean);
+    // Extract deep features using the new methodology
+    const derivedFeatures = extractGameFeatures(finalResponses, finalTimes);
 
-    // Calculate severity scores
-    const avgSeverityM1 = module1Responses.reduce((sum, r) => sum + (r.severity || 0), 0) / module1Responses.length;
-    const avgSeverityM2 = module2Responses.reduce((sum, r) => sum + (r.severity || 0), 0) / module2Responses.length;
-    const avgSeverityM3 = module3Responses.reduce((sum, r) => sum + (r.severity || 0), 0) / module3Responses.length;
-    const avgRiskRating = module4Responses.reduce((sum, r) => sum + (r.value || 0), 0) / module4Responses.length;
-
-    // Count catastrophic responses
-    const catastrophicCount = [...module1Responses, ...module2Responses, ...module3Responses]
-      .filter(r => r.severity === 3).length;
-
-    // Calculate OCD cognitive distortion score
-    let ocdScore = 0;
-    let patterns = [];
-
-    // Self-blame and misinterpretation (Module 1)
-    if (avgSeverityM1 > 2) {
-      ocdScore += 3;
-      patterns.push('Severe self-blame and misinterpretation');
-    } else if (avgSeverityM1 > 1.5) {
-      ocdScore += 2;
-      patterns.push('Moderate self-blame tendencies');
-    } else if (avgSeverityM1 > 0.8) {
-      ocdScore += 1;
-      patterns.push('Mild self-doubt');
-    }
-
-    // Moral scrupulosity (Module 2)
-    if (avgSeverityM2 > 2) {
-      ocdScore += 3;
-      patterns.push('Severe moral scrupulosity');
-    } else if (avgSeverityM2 > 1.5) {
-      ocdScore += 2;
-      patterns.push('Excessive guilt patterns');
-    } else if (avgSeverityM2 > 0.8) {
-      ocdScore += 1;
-      patterns.push('Mild moral concern');
-    }
-
-    // Exaggerated threat perception (Module 3)
-    if (avgSeverityM3 > 2) {
-      ocdScore += 2;
-      patterns.push('Severe threat exaggeration');
-    } else if (avgSeverityM3 > 1.5) {
-      ocdScore += 1;
-      patterns.push('Moderate threat perception');
-    }
-
-    // Risk miscalibration (Module 4)
-    if (avgRiskRating > 70) {
-      ocdScore += 2;
-      patterns.push('Severe risk overestimation');
-    } else if (avgRiskRating > 50) {
-      ocdScore += 1;
-      patterns.push('Moderate risk inflation');
-    }
-
-    // Catastrophic thinking
-    if (catastrophicCount > 5) {
-      ocdScore += 2;
-      patterns.push('Frequent catastrophic thinking');
-    } else if (catastrophicCount > 2) {
-      ocdScore += 1;
-    }
-
-    const behaviorPattern = ocdScore >= 8 ? 'High OCD cognitive distortion patterns'
-      : ocdScore >= 5 ? 'Moderate cognitive distortion tendencies'
-      : ocdScore >= 3 ? 'Mild intrusive thought patterns'
-      : 'Normal cognitive interpretation';
+    // Basic scoring for immediate UI feedback (kept simple for the user)
+    let uiPatterns = [];
+    if (parseFloat(derivedFeatures.catastrophicFrequency) > 0.2) uiPatterns.push("Tendency for Catastrophic Thinking");
+    if (parseFloat(derivedFeatures.degreeOfSelfBlame.meanScore) > 1.5) uiPatterns.push("High Self-Blame");
+    if (parseFloat(derivedFeatures.perceivedDanger.overestimationIndex) > 30) uiPatterns.push("Risk Overestimation");
+    if (parseFloat(derivedFeatures.reassuranceSeeking.dependencyIndex) > 0.4) uiPatterns.push("Reassurance Seeking Behavior");
 
     const payload = {
       sessionId: crypto.randomUUID(),
       timestamp: new Date().toISOString(),
       gameName: 'Intrusive Thoughts & Cognitive Interpretation Assessment',
       timeTakenSeconds: timeTaken,
-      behaviorPattern,
-      ocdScore,
-      detectedPatterns: patterns,
       
-      moduleScores: {
-        ambiguousSituations: {
-          avgSeverity: avgSeverityM1.toFixed(2),
-          responses: module1Responses
-        },
-        moralDoubt: {
-          avgSeverity: avgSeverityM2.toFixed(2),
-          responses: module2Responses
-        },
-        safetyAnalysis: {
-          avgSeverity: avgSeverityM3.toFixed(2),
-          responses: module3Responses
-        },
-        riskRating: {
-          avgRating: avgRiskRating.toFixed(2),
-          responses: module4Responses
-        }
-      },
-      
-      detailedMetrics: {
-        catastrophicResponses: catastrophicCount,
-        totalResponses: ALL_SCENARIOS.length,
-        averageResponseTime: Object.values(finalTimes).reduce((sum, t) => sum + t, 0) / Object.values(finalTimes).length,
-        responseTimes: finalTimes
-      },
-      
-      allResponses: finalResponses
+      // --- RAW DATA ---
+      rawResponses: finalResponses,
+      rawResponseTimes: finalTimes,
+
+      // --- DERIVED BEHAVIORAL FEATURES (For ML/Analysis) ---
+      features: derivedFeatures
     };
 
-    console.log("SENDING TO BACKEND (Cognitive OCD Detection):", payload);
-    alert(`Assessment Complete!\n\nTime: ${timeTaken.toFixed(1)}s\nPattern: ${behaviorPattern}\nOCD Score: ${ocdScore}/12\n\nDetected Patterns:\n${patterns.join('\n') || 'Normal responses'}`);
+    console.log("SENDING TO BACKEND (Full Feature Extraction):", payload);
+    
+    alert(
+      `Assessment Complete!\n\n` +
+      `Features Extracted (See Console for JSON):\n` +
+      `- Catastrophic Frequency: ${derivedFeatures.catastrophicFrequency}\n` +
+      `- Avg Self-Blame: ${derivedFeatures.degreeOfSelfBlame.meanScore}\n` +
+      `- Risk Overestimation Index: ${derivedFeatures.perceivedDanger.overestimationIndex}\n` +
+      `- Reassurance Seeking: ${derivedFeatures.reassuranceSeeking.frequency} instances\n\n` +
+      `Detected Patterns:\n${uiPatterns.length ? uiPatterns.join('\n') : 'Within normal ranges'}`
+    );
   };
 
   const handleReset = () => {
