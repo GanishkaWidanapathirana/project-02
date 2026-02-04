@@ -329,16 +329,23 @@ function IntrusiveThoughtsGame() {
   const [responseTimes, setResponseTimes] = useState({});
   const [scenarioStartTime, setScenarioStartTime] = useState(Date.now());
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [resultData, setResultData] = useState(null); // Backend result
+  const [localFeatures, setLocalFeatures] = useState(null); // Local features for reference
+
   const currentScenario = ALL_SCENARIOS[currentIndex];
   const progress = ((currentIndex + 1) / ALL_SCENARIOS.length) * 100;
   const isLastScenario = currentIndex === ALL_SCENARIOS.length - 1;
 
   useEffect(() => {
-    setScenarioStartTime(Date.now());
-    setSelectedOption(null);
-    setSliderValue(50);
-    setShowError(false);
-  }, [currentIndex]);
+    // Only reset scenario-specific state if we are not showing results
+    if (!resultData) {
+      setScenarioStartTime(Date.now());
+      setSelectedOption(null);
+      setSliderValue(50);
+      setShowError(false);
+    }
+  }, [currentIndex, resultData]);
 
   const handleOptionSelect = (option) => {
     setSelectedOption(option);
@@ -383,9 +390,9 @@ function IntrusiveThoughtsGame() {
     }
   };
 
-  const handleSubmit = (finalResponses, finalTimes) => {
+  const handleSubmit = async (finalResponses, finalTimes) => {
     const timeTaken = (Date.now() - startTime) / 1000;
-    
+    setIsLoading(true);
     // Extract deep features using the new methodology
     const derivedFeatures = extractGameFeatures(finalResponses, finalTimes);
 
@@ -410,17 +417,40 @@ function IntrusiveThoughtsGame() {
       features: derivedFeatures
     };
 
+    const apiPayload = {
+      game_id: 4, // Set to 4 as requested
+      input_data: payload // Mapping the extracted features to input_data
+    };
+
     console.log("SENDING TO BACKEND (Full Feature Extraction):", payload);
     
-    alert(
-      `Assessment Complete!\n\n` +
-      `Features Extracted (See Console for JSON):\n` +
-      `- Catastrophic Frequency: ${derivedFeatures.catastrophicFrequency}\n` +
-      `- Avg Self-Blame: ${derivedFeatures.degreeOfSelfBlame.meanScore}\n` +
-      `- Risk Overestimation Index: ${derivedFeatures.perceivedDanger.overestimationIndex}\n` +
-      `- Reassurance Seeking: ${derivedFeatures.reassuranceSeeking.frequency} instances\n\n` +
-      `Detected Patterns:\n${uiPatterns.length ? uiPatterns.join('\n') : 'Within normal ranges'}`
-    );
+    try {
+      
+      // Send POST request to the backend
+      const response = await fetch('http://127.0.0.1:5000/get_ocd_level', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(apiPayload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("BACKEND RESPONSE:", result);
+      
+      // Store result to trigger UI update
+      setResultData(result);
+
+    } catch (error) {
+      console.error("Error sending data to backend:", error);
+      alert("Failed to get analysis from server. Please check console.");
+    } finally {
+      setIsLoading(false); // Stop loading
+    }
   };
 
   const handleReset = () => {
@@ -432,8 +462,93 @@ function IntrusiveThoughtsGame() {
     setStartTime(Date.now());
     setResponseTimes({});
     setScenarioStartTime(Date.now());
+    setResultData(null);
+    setLocalFeatures(null);
   };
 
+  // Helper to color code results
+  const getColorForLabel = (label) => {
+    switch(label) {
+      case 'Minimal': return '#4caf50'; // Green
+      case 'Mild': return '#2196f3';    // Blue
+      case 'Moderate': return '#ff9800'; // Orange
+      case 'Severe': return '#f44336';   // Red
+      default: return '#666';
+    }
+  };
+
+  if (resultData) {
+    const { prediction } = resultData;
+    const { label, description } = prediction;
+    const labelColor = getColorForLabel(label);
+
+    return (
+      <div className="layout-container">
+        <div className="intrusive-app" style={{ textAlign: 'center', padding: '40px' }}>
+          <h2 style={{ color: '#333' }}>Analysis Complete</h2>
+          
+          {/* Result Card */}
+          <div style={{ 
+            border: `2px solid ${labelColor}`, 
+            borderRadius: '12px', 
+            padding: '24px', 
+            margin: '24px 0',
+            backgroundColor: '#fff',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#666' }}>Tendency Level</h3>
+            <h1 style={{ 
+              color: labelColor, 
+              fontSize: '3rem', 
+              margin: '10px 0',
+              textTransform: 'uppercase'
+            }}>
+              {label}
+            </h1>
+            <p style={{ fontSize: '1.1rem', lineHeight: '1.6', color: '#444' }}>
+              {description}
+            </p>
+          </div>
+
+          {/* Local Feature Summary */}
+          <div style={{ textAlign: 'left', marginTop: '20px', fontSize: '0.9rem', color: '#555', background: '#f9f9f9', padding: '15px', borderRadius: '8px' }}>
+            <strong>Key Indicators Detected:</strong>
+            <ul style={{ marginTop: '5px', paddingLeft: '20px' }}>
+              <li>Catastrophic Thinking Freq: {localFeatures?.catastrophicFrequency}</li>
+              <li>Reassurance Seeking: {localFeatures?.reassuranceSeeking?.frequency} instances</li>
+              <li>Risk Overestimation: {localFeatures?.perceivedDanger?.overestimationIndex}</li>
+            </ul>
+          </div>
+
+          <button className="continue-btn" onClick={handleReset} style={{ marginTop: '30px' }}>
+            Start New Assessment
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER 2: LOADING STATE ---
+  if (isLoading) {
+    return (
+      <div className="layout-container">
+        <div className="intrusive-app" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+          <div className="spinner" style={{ 
+            width: '50px', 
+            height: '50px', 
+            border: '5px solid #f3f3f3', 
+            borderTop: '5px solid #3498db', 
+            borderRadius: '50%', 
+            animation: 'spin 1s linear infinite' 
+          }} />
+          <p style={{ marginTop: '20px', fontSize: '1.1rem' }}>Analyzing response patterns...</p>
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER 3: GAME VIEW (Default) ---
   return (
     <div className="layout-container">
       <div className="intrusive-app">
