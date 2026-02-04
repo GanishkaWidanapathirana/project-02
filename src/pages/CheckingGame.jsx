@@ -36,6 +36,9 @@ function CheckingGame() {
   const [itemStates, setItemStates] = useState({});
   const [hoveredItem, setHoveredItem] = useState(null);
   const [hoverStartTime, setHoverStartTime] = useState(null);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [resultData, setResultData] = useState(null);
   
   // Ref for Feature 5 (Delay before clicking)
   const pageEnterTime = useRef(Date.now());
@@ -98,6 +101,15 @@ function CheckingGame() {
     }));
   }, [currentPage]);
 
+  const getColorForLabel = (category) => {
+    switch(category) {
+      case 'No Checking OCD': return '#4caf50'; // Green
+      case 'Mild': return '#2196f3';    // Blue
+      case 'Moderate': return '#ff9800'; // Orange
+      case 'Severe': return '#f44336';   // Red
+      default: return '#666';
+    }
+  };
   // Section 4.1: Track hover time
   const handleMouseEnter = (itemKey) => {
     setHoveredItem(itemKey);
@@ -237,6 +249,8 @@ function CheckingGame() {
       pageVisits: { 1: 1 },
       revisitCount: 0,
     });
+    setResultData(null);
+    setIsLoading(false);
   };
 
   // Feature 6 Helper: Calculate Entropy
@@ -260,7 +274,7 @@ function CheckingGame() {
   };
 
   // Generate Summary Report
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Feature 3: Page Revisit Frequency
     const totalPages = PAGES.length; // Fixed at 3
     const pageRevisitFrequency = metrics.revisitedPageCount / totalPages;
@@ -298,13 +312,123 @@ function CheckingGame() {
         order_of_checking_entropy: parseFloat(entropy.toFixed(4))
     };
 
-    console.log("SENDING TO BACKEND (Feature Extraction):", payload);
-    alert(`Summary Report Generated!\n\nChecks: ${metrics.totalChecks}\nRechecks: ${metrics.totalRechecks}\nEntropy: ${payload.order_of_checking_entropy}\n\nCheck console for full JSON.`);
+   setIsLoading(true);
+
+    try {
+        const response = await fetch('http://127.0.0.1:5000/get_ocd_level', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            game_id: 3,
+            input_data: payload
+          })
+        });
+  
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+  
+        const result = await response.json();
+        console.log("BACKEND RESPONSE:", result);
+        setResultData(result);
+  
+      } catch (error) {
+        console.error("Error sending data:", error);
+        alert("Failed to submit data. Please check console.");
+      } finally {
+        setIsLoading(false);
+      }
   };
 
   const currentPageData = PAGES[currentPage];
   const allItemsSafe = Object.values(itemStates).every(state => state === 'safe');
+  if (resultData) {
+    const { prediction } = resultData;
+    const { category, description } = prediction; // Note: Uses 'category' instead of label for display name
+    const labelColor = getColorForLabel(category);
 
+    return (
+      <div className="layout-container">
+        <div 
+          className="app checking-app" 
+          style={{ 
+            textAlign: 'center', 
+            padding: '20px', 
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '600px',
+            height: '100%' 
+          }}
+        >
+          <h2 style={{ color: '#333', marginBottom: '10px' }}>Analysis Complete</h2>
+          
+          <div style={{ 
+            border: `2px solid ${labelColor}`, 
+            borderRadius: '12px', 
+            padding: '24px', 
+            margin: '20px 0',
+            backgroundColor: '#fff',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            maxWidth: '450px', 
+            width: '100%'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#666' }}>Checking Obsession Level</h3>
+            <h1 style={{ 
+              color: labelColor, 
+              fontSize: '2.5rem', 
+              margin: '15px 0',
+              textTransform: 'uppercase'
+            }}>
+              {category}
+            </h1>
+            <p style={{ fontSize: '1rem', lineHeight: '1.5', color: '#444' }}>
+              {description}
+            </p>
+          </div>
+
+          <button 
+            className="action-btn reset"
+            onClick={handleReset} 
+            style={{ 
+              marginTop: '20px', 
+              padding: '10px 30px', 
+              fontSize: '1rem',
+              height: 'auto',         
+              minHeight: 'unset',     
+              width: 'auto',          
+              flex: 'none',           
+              lineHeight: 'normal',   
+              display: 'inline-block' 
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER 2: LOADING VIEW ---
+  if (isLoading) {
+    return (
+      <div className="layout-container">
+        <div className="app checking-app" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '600px' }}>
+          <div className="spinner" style={{ 
+            width: '50px', 
+            height: '50px', 
+            border: '5px solid #f3f3f3', 
+            borderTop: '5px solid #3498db', 
+            borderRadius: '50%', 
+            animation: 'spin 1s linear infinite' 
+          }} />
+          <p style={{ marginTop: '20px', fontSize: '1.1rem' }}>Analyzing checking behavior...</p>
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="layout-container">
       <div className="app checking-app">
