@@ -14,6 +14,9 @@ const INITIAL_PIECES = [
 function SymmetryGame() {
   const [pieces, setPieces] = useState(INITIAL_PIECES);
   const [selectedId, setSelectedId] = useState(null);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [resultData, setResultData] = useState(null);
   
   // --- TIMING REFS (For precision feature extraction) ---
   const gameStartTime = useRef(Date.now());
@@ -43,6 +46,16 @@ function SymmetryGame() {
       top: `${subY * stepSize}%`,
       transform: 'translate(-50%, -50%)'
     };
+  };
+  // Helper for Result Colors
+  const getColorForLabel = (label) => {
+    switch(label) {
+      case 'Minimal': return '#4caf50'; // Green
+      case 'Mild': return '#2196f3';    // Blue
+      case 'Moderate': return '#ff9800'; // Orange
+      case 'Severe': return '#f44336';   // Red
+      default: return '#666';
+    }
   };
 
   // --- INTERACTION LOGIC ---
@@ -199,10 +212,13 @@ function SymmetryGame() {
       coarse_moves: 0
     });
     setSelectedId(null);
+
+    setResultData(null);
+    setIsLoading(false);
   };
 
   // --- FINAL SUBMISSION (Features 3, 4, 5 & Payload Construction) ---
-  const handleFinalSubmit = () => {
+  const handleFinalSubmit = async () => {
     const allConfirmed = pieces.every(p => p.confirmed);
     if (!allConfirmed) {
       alert('Please confirm all pieces before submitting');
@@ -244,7 +260,32 @@ function SymmetryGame() {
     };
 
     console.log("SENDING TO BACKEND:", finalPayload);
-    alert(`Submission Complete!\nMoves: ${metrics.total_moves}\nCheck Console for Data Payload.`);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch('http://127.0.0.1:5000/get_ocd_level', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          game_id: 1,
+          input_data: finalPayload
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("BACKEND RESPONSE:", result);
+      setResultData(result);
+
+    } catch (error) {
+      console.error("Error sending data:", error);
+      alert("Failed to submit data. Please check console.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getPieceInCell = (r, c) => {
@@ -254,6 +295,97 @@ function SymmetryGame() {
   const currentPiece = pieces.find(p => p.id === selectedId);
   const allConfirmed = pieces.every(p => p.confirmed);
 
+  if (resultData) {
+    const { prediction } = resultData;
+    const { label, description } = prediction;
+    const labelColor = getColorForLabel(label);
+
+    return (
+      <div className="layout-container">
+        <div 
+          className="app symmetry-app" 
+          style={{ 
+            textAlign: 'center', 
+            padding: '20px', // Reduced padding
+            // --- FIX: Match Game Screen Size ---
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '600px', // Matches typical game board height
+            height: '100%'      // Ensures it fills the container naturally without forcing overflow
+          }}
+        >
+          <h2 style={{ color: '#333', marginBottom: '10px' }}>Analysis Complete</h2>
+          
+          <div style={{ 
+            border: `2px solid ${labelColor}`, 
+            borderRadius: '12px', 
+            padding: '24px', 
+            margin: '20px 0',
+            backgroundColor: '#fff',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            maxWidth: '450px', // Constrain width to look like a card
+            width: '100%'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#666' }}>Symmetry Obsession Level</h3>
+            <h1 style={{ 
+              color: labelColor, 
+              fontSize: '2.5rem', // Slightly smaller to fit better
+              margin: '15px 0',
+              textTransform: 'uppercase'
+            }}>
+              {label}
+            </h1>
+            <p style={{ fontSize: '1rem', lineHeight: '1.5', color: '#444' }}>
+              {description}
+            </p>
+          </div>
+
+          <button 
+            className="action-btn reset"
+            onClick={handleReset} 
+            style={{ 
+              marginTop: '20px', 
+              padding: '10px 30px', 
+              fontSize: '1rem',
+              // --- BUTTON FIXES ---
+              height: 'auto',         
+              minHeight: 'unset',     
+              width: 'auto',          
+              flex: 'none',           
+              lineHeight: 'normal',   
+              display: 'inline-block' 
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER 2: LOADING VIEW ---
+  if (isLoading) {
+    return (
+      <div className="layout-container">
+        <div className="app symmetry-app" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
+          <div className="spinner" style={{ 
+            width: '50px', 
+            height: '50px', 
+            border: '5px solid #f3f3f3', 
+            borderTop: '5px solid #3498db', 
+            borderRadius: '50%', 
+            animation: 'spin 1s linear infinite' 
+          }} />
+          <p style={{ marginTop: '20px', fontSize: '1.1rem' }}>Analyzing movement patterns...</p>
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER 3: GAME VIEW (Default) ---
   return (
     <div className="layout-container">
       <div className="app symmetry-app">
