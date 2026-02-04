@@ -100,6 +100,9 @@ function CleaningGame() {
   const [selectedIdx, setSelectedIdx] = useState(null);
   const [activeTool, setActiveTool] = useState(null);
   const [lastAction, setLastAction] = useState(null);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [resultData, setResultData] = useState(null);
   
   // Refs for accurate timing calculations (Feature 10)
   const lastInteractionTime = useRef(Date.now());
@@ -135,6 +138,16 @@ function CleaningGame() {
   }, []);
 
   const currentTile = selectedIdx !== null ? board[selectedIdx] : null;
+
+  const getColorForLabel = (label) => {
+    switch(label) {
+      case 'Minimal': return '#4caf50'; // Green
+      case 'Mild': return '#2196f3';    // Blue
+      case 'Moderate': return '#ff9800'; // Orange
+      case 'Severe': return '#f44336';   // Red
+      default: return '#666';
+    }
+  };
 
   // Helper to accumulate time spent on specific tile types (Feature 10)
   const trackTimeSpent = (newTileType) => {
@@ -303,9 +316,11 @@ function CleaningGame() {
       repeatActionsAfterCompletion: 0,
       timeSpentByType: { dirt: 0, germ: 0, contamination: 0, empty: 0 }
     });
+    setResultData(null);
+    setIsLoading(false);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // Flush final time buffer
     trackTimeSpent(null); 
 
@@ -386,9 +401,31 @@ function CleaningGame() {
         // 10. High-Risk Area Obsession Intensity
         high_risk_area_obsession_intensity: obsessionIntensity
     };
-
-    console.log("SENDING TO BACKEND (Feature Extraction):", payload);
-    alert(`Cleaning Complete!\n\nTime: ${totalTime.toFixed(1)}s\nCheck console for extracted features.`);
+    setIsLoading(true);
+    try {
+        const response = await fetch('http://127.0.0.1:5000/get_ocd_level', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            game_id: 2,
+            input_data: payload
+          })
+        });
+  
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+  
+        const result = await response.json();
+        console.log("BACKEND RESPONSE:", result);
+        setResultData(result);
+  
+      } catch (error) {
+        console.error("Error sending data:", error);
+        alert("Failed to submit data. Please check console.");
+      } finally {
+        setIsLoading(false);
+      }
   };
 
   const renderContent = (tile) => {
@@ -414,6 +451,94 @@ function CleaningGame() {
   const dirtyCount = board.filter(t => !t.isClean && t.type !== 'empty').length;
   const cleanCount = board.filter(t => t.isClean && t.type !== 'empty').length;
   const totalTiles = dirtyCount + cleanCount;
+
+  if (resultData) {
+    const { prediction } = resultData;
+    const { label, description } = prediction;
+    const labelColor = getColorForLabel(label);
+
+    return (
+      <div className="layout-container">
+        <div 
+          className="app cleaning-app" 
+          style={{ 
+            textAlign: 'center', 
+            padding: '20px', 
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '600px', // Matches typical game board height
+            height: '100%'      // Ensures it fills the container naturally
+          }}
+        >
+          <h2 style={{ color: '#333', marginBottom: '10px' }}>Analysis Complete</h2>
+          
+          <div style={{ 
+            border: `2px solid ${labelColor}`, 
+            borderRadius: '12px', 
+            padding: '24px', 
+            margin: '20px 0',
+            backgroundColor: '#fff',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+            maxWidth: '450px', 
+            width: '100%'
+          }}>
+            <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#666' }}>Cleanliness Obsession Level</h3>
+            <h1 style={{ 
+              color: labelColor, 
+              fontSize: '2.5rem', 
+              margin: '15px 0',
+              textTransform: 'uppercase'
+            }}>
+              {label}
+            </h1>
+            <p style={{ fontSize: '1rem', lineHeight: '1.5', color: '#444' }}>
+              {description}
+            </p>
+          </div>
+
+          <button 
+            className="action-btn reset"
+            onClick={handleReset} 
+            style={{ 
+              marginTop: '20px', 
+              padding: '10px 30px', 
+              fontSize: '1rem',
+              height: 'auto',         
+              minHeight: 'unset',     
+              width: 'auto',          
+              flex: 'none',           
+              lineHeight: 'normal',   
+              display: 'inline-block' 
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER 2: LOADING VIEW ---
+  if (isLoading) {
+    return (
+      <div className="layout-container">
+        <div className="app cleaning-app" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '600px' }}>
+          <div className="spinner" style={{ 
+            width: '50px', 
+            height: '50px', 
+            border: '5px solid #f3f3f3', 
+            borderTop: '5px solid #3498db', 
+            borderRadius: '50%', 
+            animation: 'spin 1s linear infinite' 
+          }} />
+          <p style={{ marginTop: '20px', fontSize: '1.1rem' }}>Analyzing cleaning patterns...</p>
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="layout-container">
