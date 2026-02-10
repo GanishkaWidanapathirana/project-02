@@ -1,0 +1,94 @@
+/* Clean white background for the whole page */
+.landing-root {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.landing-content {
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+  padding: 20px;
+}
+
+/* Logo Image Styling */
+.landing-logo {
+  width: 180px; /* Adjust based on your actual image size */
+  height: auto;
+  margin-bottom: 20px;
+  border-radius: 20px; /* Slight rounding if the image isn't already rounded */
+}
+
+/* Main Title "TheraOCD" */
+.landing-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #000000;
+  margin: 0;
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+
+/* Subtitle "A calm space..." */
+.landing-subtitle {
+  font-family: "Times New Roman", Times, serif; /* Serif font to match image */
+  font-size: 1.25rem;
+  color: #1a1a1a;
+  margin: 0;
+  margin-bottom: 40px;
+  font-weight: 400;
+}
+
+/* Button Container */
+.landing-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 20px; /* Space between buttons */
+  width: 100%;
+  margin-bottom: 30px;
+}
+
+/* The Purple Buttons */
+.btn {
+  display: block;
+  width: 100%;
+  padding: 15px 0;
+  text-align: center;
+  border-radius: 50px; /* Makes them pill-shaped */
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+  
+  /* Soft Purple Gradient matching the image */
+  background: linear-gradient(180deg, #a594f9 0%, #9683e8 100%);
+  color: white;
+  
+  /* Soft shadow below button */
+  box-shadow: 0 4px 10px rgba(149, 131, 232, 0.4);
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(149, 131, 232, 0.5);
+}
+
+/* Bottom blue text */
+.landing-footer {
+  margin-top: 10px;
+}
+
+.footer-link {
+  font-size: 0.75rem;
+  color: #6ea8fe; /* Light blue color */
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.footer-link:hover {
+  text-decoration: underline;
+}

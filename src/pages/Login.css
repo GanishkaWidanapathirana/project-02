@@ -1,0 +1,181 @@
+/* Page Background */
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f0eff6; /* Light lavender grey */
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  padding: 20px;
+}
+
+/* Container holding both image and form */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 80px; /* Space between illustration and card */
+  max-width: 1000px;
+  width: 100%;
+}
+
+/* Illustration Area */
+.login-illustration-wrapper {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.login-illustration {
+  max-width: 100%;
+  height: auto;
+  /* If on mobile, you might want to hide this: display: none; */
+}
+
+/* Login Card Styling */
+.login-card {
+  flex: 0 0 400px; /* Fixed width for card */
+  background: white;
+  padding: 40px;
+  border-radius: 30px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  text-align: center;
+}
+
+.login-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #000;
+  margin-bottom: 5px;
+}
+
+.login-subtitle {
+  color: #888;
+  font-size: 0.9rem;
+  margin-bottom: 30px;
+}
+
+.error-text {
+  color: #d9534f;
+  background: #fdf0f0;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 20px;
+}
+
+/* Input Fields Styling */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.custom-input {
+  width: 100%;
+  padding: 15px 20px 15px 50px; /* Left padding makes room for icon */
+  border: 1px solid transparent;
+  border-radius: 50px; /* Pill shape */
+  background-color: #ffffff;
+  font-size: 0.9rem;
+  outline: none;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* Soft shadow */
+  transition: all 0.3s ease;
+}
+
+.custom-input::placeholder {
+  color: #aaa;
+}
+
+.custom-input:focus {
+  box-shadow: 0 4px 20px rgba(165, 148, 249, 0.2);
+  border: 1px solid #a594f9;
+}
+
+/* Options (Remember Me / Forgot PW) */
+.login-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  font-size: 0.8rem;
+  color: #333;
+  padding: 0 10px;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.forgot-link {
+  color: #000;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* Button */
+.login-btn {
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 50px;
+  background-color: #9c89f7; /* Purple from image */
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.3s;
+  box-shadow: 0 4px 10px rgba(156, 137, 247, 0.3);
+}
+
+.login-btn:hover {
+  background-color: #8a76e8;
+}
+
+.login-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Footer */
+.login-footer {
+  margin-top: 25px;
+  font-size: 0.8rem;
+  color: #333;
+  font-weight: 600;
+}
+
+.signup-link {
+  color: #9c89f7;
+  text-decoration: none;
+  margin-left: 5px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .login-container {
+    flex-direction: column;
+    gap: 30px;
+  }
+  
+  .login-illustration-wrapper {
+    display: none; /* Hide illustration on small screens */
+  }
+}
