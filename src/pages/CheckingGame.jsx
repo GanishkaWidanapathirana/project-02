@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // Section 2 & 5: Scenarios with unsafe/safe states
 const SCENARIOS = [
@@ -42,7 +43,7 @@ function CheckingGame() {
   
   // Ref for Feature 5 (Delay before clicking)
   const pageEnterTime = useRef(Date.now());
-
+  const nav = useNavigate();
   // Section 4.1: Metrics Collected
   const [metrics, setMetrics] = useState({
     startTime: Date.now(),
@@ -349,6 +350,12 @@ function CheckingGame() {
 
     return (
       <div className="layout-container">
+         <button className="game-back-btn" onClick={() => nav('/dashboard')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
+        </button>
         <div 
           className="app checking-app" 
           style={{ 
@@ -414,6 +421,12 @@ function CheckingGame() {
   if (isLoading) {
     return (
       <div className="layout-container">
+         <button className="game-back-btn" onClick={() => nav('/dashboard')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
+        </button>
         <div className="app checking-app" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '600px' }}>
           <div className="spinner" style={{ 
             width: '50px', 
@@ -431,6 +444,12 @@ function CheckingGame() {
   }
   return (
     <div className="layout-container">
+       <button className="game-back-btn" onClick={() => nav('/dashboard')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
+        </button>
       <div className="app checking-app">
         <header>
           <h1>Checking & Rechecking Behavior Detection Game</h1>

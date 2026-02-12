@@ -23,7 +23,7 @@ export default function Login() {
       setError('');
       const res = await loginApi({ email, password });
       saveToken(res.token);
-      nav('/dashboard');
+      nav('/welcome');
     } catch (e) {
       setError(e.message || 'Login failed');
     } finally {

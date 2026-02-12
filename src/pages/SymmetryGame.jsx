@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // Constants
 const GRID_SIZE = 6;
@@ -18,6 +19,10 @@ function SymmetryGame() {
   const [isLoading, setIsLoading] = useState(false);
   const [resultData, setResultData] = useState(null);
   
+  // --- VISUAL TIMER STATE ---
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const nav = useNavigate();
+
   // --- TIMING REFS (For precision feature extraction) ---
   const gameStartTime = useRef(Date.now());
   const selectionStartTime = useRef(null); 
@@ -38,6 +43,17 @@ function SymmetryGame() {
     coarse_moves: 0             // Feature 13
   });
 
+  // --- TIMER EFFECT: Updates the visual clock every second ---
+  useEffect(() => {
+    // Only run timer if game is active (not loading, no result yet)
+    if (!isLoading && !resultData) {
+      const timerInterval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - gameStartTime.current) / 1000));
+      }, 1000);
+      return () => clearInterval(timerInterval);
+    }
+  }, [isLoading, resultData]);
+
   // Helper for CSS positioning
   const getPositionStyle = (subX, subY) => {
     const stepSize = 100 / SUB_GRID_STEPS;
@@ -47,6 +63,7 @@ function SymmetryGame() {
       transform: 'translate(-50%, -50%)'
     };
   };
+
   // Helper for Result Colors
   const getColorForLabel = (label) => {
     switch(label) {
@@ -60,7 +77,7 @@ function SymmetryGame() {
 
   // --- INTERACTION LOGIC ---
 
-  // Handle Button Selection (Feature 6: Time per button)
+  // Handle Button Selection
   const handleSelect = (id) => {
     const piece = pieces.find(p => p.id === id);
     if (!piece.confirmed) {
@@ -83,7 +100,7 @@ function SymmetryGame() {
     }
   };
 
-  // Handle Movement (Features 1, 2, 7, 10, 11, 12, 13)
+  // Handle Movement
   const handleKeyDown = useCallback((e) => {
     if (!selectedId) return;
     
@@ -102,6 +119,9 @@ function SymmetryGame() {
         switch (e.key) {
           case 'ArrowUp':
             if (newSubY > 0) { newSubY--; moved = true; }
+            else if (p.boxY > 0) { // Coarse move UP to next box
+                // Logic for moving between boxes could be added here if desired
+            }
             break;
           case 'ArrowDown':
             if (newSubY < SUB_GRID_STEPS-1) { newSubY++; moved = true; }
@@ -120,32 +140,23 @@ function SymmetryGame() {
           const timeDelta = (currentTime - lastMoveTimeRef.current) / 1000; 
           lastMoveTimeRef.current = currentTime;
           
-          // Feature 10: Log sequence
           moveSequence.current.push(e.key);
-
-          // Feature 12 vs 13 Logic
-          // In this game, all moves are 1/8th step (Fine). 
-          // Coarse would be a full grid jump (not implemented in controls, but tracked).
           const isFine = true; 
 
           setMetrics(prev => ({
             ...prev,
-            total_moves: prev.total_moves + 1, // Feature 1
-            
-            moves_per_button: { // Feature 2
+            total_moves: prev.total_moves + 1,
+            moves_per_button: {
               ...prev.moves_per_button,
               [p.id]: (prev.moves_per_button[p.id] || 0) + 1
             },
-            
-            time_between_moves: [...prev.time_between_moves, timeDelta], // Feature 7
-            
-            move_direction_counts: { // Feature 11
+            time_between_moves: [...prev.time_between_moves, timeDelta],
+            move_direction_counts: {
               ...prev.move_direction_counts,
               [e.key]: (prev.move_direction_counts[e.key] || 0) + 1
             },
-
-            fine_adjustment_moves: isFine ? prev.fine_adjustment_moves + 1 : prev.fine_adjustment_moves, // Feature 12
-            coarse_moves: !isFine ? prev.coarse_moves + 1 : prev.coarse_moves // Feature 13
+            fine_adjustment_moves: isFine ? prev.fine_adjustment_moves + 1 : prev.fine_adjustment_moves,
+            coarse_moves: !isFine ? prev.coarse_moves + 1 : prev.coarse_moves
           }));
         }
 
@@ -159,7 +170,7 @@ function SymmetryGame() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // Handle Confirmation (Feature 8: Idle time before confirm)
+  // Handle Confirmation
   const handleConfirmPiece = () => {
     if (!selectedId) {
       alert('Please select a piece first');
@@ -167,11 +178,8 @@ function SymmetryGame() {
     }
 
     const currentTime = Date.now();
-    
-    // Feature 8: Time between last arrow key and confirm click
     const idleTime = (currentTime - lastMoveTimeRef.current) / 1000;
 
-    // Feature 6: Finalize interaction time for this button
     let duration = 0;
     if (selectionStartTime.current) {
       duration = (currentTime - selectionStartTime.current) / 1000;
@@ -179,7 +187,7 @@ function SymmetryGame() {
 
     setMetrics(prev => ({
       ...prev,
-      idle_time_before_confirm: idleTime, // Update latest idle time
+      idle_time_before_confirm: idleTime, 
       time_per_button: {
         ...prev.time_per_button,
         [selectedId]: (prev.time_per_button[selectedId] || 0) + duration
@@ -200,6 +208,7 @@ function SymmetryGame() {
     lastMoveTimeRef.current = Date.now();
     selectionStartTime.current = null;
     moveSequence.current = [];
+    setElapsedTime(0); // Reset visual timer
     
     setMetrics({ 
       total_moves: 0,
@@ -212,12 +221,11 @@ function SymmetryGame() {
       coarse_moves: 0
     });
     setSelectedId(null);
-
     setResultData(null);
     setIsLoading(false);
   };
 
-  // --- FINAL SUBMISSION (Features 3, 4, 5 & Payload Construction) ---
+  // --- FINAL SUBMISSION ---
   const handleFinalSubmit = async () => {
     const allConfirmed = pieces.every(p => p.confirmed);
     if (!allConfirmed) {
@@ -225,37 +233,29 @@ function SymmetryGame() {
       return;
     }
 
-    // Feature 5: Total Time
     const total_time = (Date.now() - gameStartTime.current) / 1000;
-    
-    // Feature 3: Mean moves per button
     const mean_moves_per_button = metrics.total_moves / pieces.length;
-
-    // Feature 4: Max moves single button
     const movesArray = Object.values(metrics.moves_per_button);
     const max_moves_single_button = movesArray.length > 0 ? Math.max(...movesArray) : 0;
 
-    // Construct Payload exactly as requested in "Recommended Data Logging Format"
     const finalPayload = {
       total_moves: metrics.total_moves,
       moves_per_button: metrics.moves_per_button,
       mean_moves_per_button: parseFloat(mean_moves_per_button.toFixed(2)),
       max_moves_single_button: max_moves_single_button,
       total_time: parseFloat(total_time.toFixed(2)),
-      time_per_button: metrics.time_per_button, // Feature 6
-      time_between_moves: metrics.time_between_moves, // Feature 7
-      idle_time_before_confirm: parseFloat(metrics.idle_time_before_confirm.toFixed(2)), // Feature 8 & 9
-      move_sequence_length: moveSequence.current.length, // Feature 10
-      move_direction_counts: { // Feature 11 (Mapped to simple keys)
+      time_per_button: metrics.time_per_button, 
+      time_between_moves: metrics.time_between_moves, 
+      idle_time_before_confirm: parseFloat(metrics.idle_time_before_confirm.toFixed(2)), 
+      move_sequence_length: moveSequence.current.length, 
+      move_direction_counts: { 
         up: metrics.move_direction_counts.ArrowUp,
         down: metrics.move_direction_counts.ArrowDown,
         left: metrics.move_direction_counts.ArrowLeft,
         right: metrics.move_direction_counts.ArrowRight
       },
-      fine_adjustment_moves: metrics.fine_adjustment_moves, // Feature 12
-      coarse_moves: metrics.coarse_moves, // Feature 13
-      
-      // Backend Requirements (Positions)
+      fine_adjustment_moves: metrics.fine_adjustment_moves, 
+      coarse_moves: metrics.coarse_moves, 
       final_positions: pieces
     };
 
@@ -295,6 +295,7 @@ function SymmetryGame() {
   const currentPiece = pieces.find(p => p.id === selectedId);
   const allConfirmed = pieces.every(p => p.confirmed);
 
+  // --- RENDER 1: RESULT VIEW ---
   if (resultData) {
     const { prediction } = resultData;
     const { label, description } = prediction;
@@ -302,18 +303,29 @@ function SymmetryGame() {
 
     return (
       <div className="layout-container">
+        <button className="game-back-btn" onClick={() => nav('/dashboard')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
+        </button>
+        <button className="game-back-btn" onClick={() => nav('/dashboard')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
+        </button>
         <div 
           className="app symmetry-app" 
           style={{ 
             textAlign: 'center', 
-            padding: '20px', // Reduced padding
-            // --- FIX: Match Game Screen Size ---
+            padding: '20px', 
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'center',
             alignItems: 'center',
-            minHeight: '600px', // Matches typical game board height
-            height: '100%'      // Ensures it fills the container naturally without forcing overflow
+            minHeight: '600px', 
+            height: '100%' 
           }}
         >
           <h2 style={{ color: '#333', marginBottom: '10px' }}>Analysis Complete</h2>
@@ -325,13 +337,13 @@ function SymmetryGame() {
             margin: '20px 0',
             backgroundColor: '#fff',
             boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-            maxWidth: '450px', // Constrain width to look like a card
+            maxWidth: '450px', 
             width: '100%'
           }}>
             <h3 style={{ margin: 0, fontSize: '1.2rem', color: '#666' }}>Symmetry Obsession Level</h3>
             <h1 style={{ 
               color: labelColor, 
-              fontSize: '2.5rem', // Slightly smaller to fit better
+              fontSize: '2.5rem', 
               margin: '15px 0',
               textTransform: 'uppercase'
             }}>
@@ -349,7 +361,6 @@ function SymmetryGame() {
               marginTop: '20px', 
               padding: '10px 30px', 
               fontSize: '1rem',
-              // --- BUTTON FIXES ---
               height: 'auto',         
               minHeight: 'unset',     
               width: 'auto',          
@@ -369,6 +380,12 @@ function SymmetryGame() {
   if (isLoading) {
     return (
       <div className="layout-container">
+        <button className="game-back-btn" onClick={() => nav('/dashboard')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
+        </button>
         <div className="app symmetry-app" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
           <div className="spinner" style={{ 
             width: '50px', 
@@ -388,6 +405,12 @@ function SymmetryGame() {
   // --- RENDER 3: GAME VIEW (Default) ---
   return (
     <div className="layout-container">
+      <button className="game-back-btn" onClick={() => nav('/dashboard')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
+        </button>
       <div className="app symmetry-app">
         <header>
           <h1>Symmetry Detection Game</h1>
@@ -439,7 +462,8 @@ function SymmetryGame() {
             <h3>Stats</h3>
             <div className="coords">
               Moves: {metrics.total_moves}<br/>
-              Time: {((Date.now() - gameStartTime.current)/1000).toFixed(0)}s<br/>
+              {/* --- FIX: Display the live running timer --- */}
+              Time: {elapsedTime}s<br/>
               Confirmed: {pieces.filter(p => p.confirmed).length}/{pieces.length}
             </div>
           </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // Constants from Game Spec (Section 2 & 3)
 const GRID_SIZE = 8;
@@ -103,6 +104,7 @@ function CleaningGame() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [resultData, setResultData] = useState(null);
+  const nav = useNavigate();
   
   // Refs for accurate timing calculations (Feature 10)
   const lastInteractionTime = useRef(Date.now());
@@ -459,6 +461,12 @@ function CleaningGame() {
 
     return (
       <div className="layout-container">
+         <button className="game-back-btn" onClick={() => nav('/dashboard')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
+        </button>
         <div 
           className="app cleaning-app" 
           style={{ 
@@ -524,6 +532,12 @@ function CleaningGame() {
   if (isLoading) {
     return (
       <div className="layout-container">
+         <button className="game-back-btn" onClick={() => nav('/dashboard')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
+        </button>
         <div className="app cleaning-app" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '600px' }}>
           <div className="spinner" style={{ 
             width: '50px', 
@@ -542,6 +556,12 @@ function CleaningGame() {
 
   return (
     <div className="layout-container">
+       <button className="game-back-btn" onClick={() => nav('/dashboard')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
+        </button>
       <div className="app cleaning-app">
         <header>
           <h1>Cleaning & Contamination Detection Game</h1>

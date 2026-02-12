@@ -1,0 +1,197 @@
+/* Import Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&display=swap');
+
+.game-dashboard-page {
+  min-height: 100vh;
+  background-color: #f0eff6; /* Light lavender grey background */
+  font-family: 'Quicksand', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* --- HEADER --- */
+.dashboard-header {
+  width: 100%;
+  padding: 20px 50px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-logo {
+  width: 35px;
+  height: auto;
+}
+
+.logo-text {
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: #000;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.nav-pill {
+  background-color: #e0e0e0;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px; /* Rectangular with slight rounding */
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #555;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.nav-pill.active {
+  background-color: #dcdcdc; /* Slightly darker to show active state */
+  color: #333;
+}
+
+.profile-icon {
+  width: 35px;
+  height: 35px;
+  background-color: #87ceeb; /* Sky blue circle */
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* --- MAIN CARDS --- */
+.cards-container {
+  display: flex;
+  gap: 60px; /* Space between the two cards */
+  margin-top: 40px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 20px;
+}
+
+.game-card {
+  background-color: #e6e6e6; /* Light grey card background */
+  width: 380px;
+  padding: 40px;
+  border-radius: 40px; /* Very rounded corners */
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+}
+
+.card-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #000;
+  margin: 0 0 10px 0;
+}
+
+.card-subtitle {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 30px;
+}
+
+/* White box for the image */
+.card-image-wrapper {
+  background-color: #fffaf5; /* Warm white background for illustration */
+  width: 250px;
+  height: 220px;
+  border-radius: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 25px;
+  overflow: hidden;
+  padding: 10px;
+}
+
+.card-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.card-tagline {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #000;
+  margin-bottom: 5px;
+}
+
+.card-tagline.blue-text {
+  color: #6ea8fe; /* Light blue text for "Deep Breathing" */
+  font-size: 1.1rem;
+}
+
+.card-desc {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #000;
+  margin-bottom: 25px;
+}
+
+.play-btn {
+  background-color: #a594f9; /* Purple button */
+  color: white;
+  border: none;
+  padding: 12px 60px;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 1rem;
+  margin-top: auto; /* Pushes button to bottom if content varies */
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(165, 148, 249, 0.4);
+  transition: transform 0.2s;
+}
+
+.play-btn:hover {
+  transform: scale(1.05);
+}
+
+/* --- FOOTER --- */
+.dashboard-footer {
+  margin-top: 50px;
+  margin-bottom: 30px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trophy-icon {
+  font-size: 1.5rem;
+}
+
+.footer-text {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+/* Responsive */
+@media (max-width: 850px) {
+  .cards-container {
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+  }
+  
+  .dashboard-header {
+    padding: 20px;
+  }
+}

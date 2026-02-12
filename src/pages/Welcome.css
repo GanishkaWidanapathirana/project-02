@@ -1,0 +1,163 @@
+/* 1. IMPORT THE FONTS (Paste this at the very top) */
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Lora:ital,wght@0,400;0,500;1,400&family=Quicksand:wght@300;400;500;700&display=swap');
+
+/* Page Background */
+.welcome-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f0eff6;
+  /* Default font: Use Quicksand for UI elements */
+  font-family: 'Quicksand', sans-serif; 
+  padding: 20px;
+}
+
+/* Main Container */
+.welcome-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 1100px;
+  gap: 80px;
+}
+
+/* --- Left Section (Hello + Image) --- */
+.welcome-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center; 
+}
+
+.hello-title {
+  /* Match design: Large, Clean, Blue */
+  font-family: 'Quicksand', sans-serif;
+  font-size: 5rem;
+  color: #7c83fd; /* Periwinkle Blue */
+  margin: 0 0 20px 0;
+  font-weight: 500;
+  letter-spacing: 1px;
+}
+
+.illustration-wrapper {
+  padding: 10px;
+}
+
+.welcome-img {
+  max-width: 100%;
+  width: 420px;
+  height: auto;
+}
+
+/* --- Right Section (Text + Card) --- */
+.welcome-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.greeting-title {
+  /* Match design: Cursive, Orange */
+  font-family: 'Dancing Script', cursive; 
+  font-size: 3.5rem; 
+  color: #eebb77; 
+  margin: 0 0 20px 0;
+}
+
+.intro-text-block {
+  margin-bottom: 40px;
+  color: #333;
+}
+
+/* KEY CHANGE: Use Serif font for the "Story/Reading" text */
+.main-desc {
+  font-family: 'Lora', serif; /* Serif font matches the book theme */
+  font-size: 1.35rem;
+  line-height: 1.6;
+  margin-bottom: 15px;
+  color: #222;
+}
+
+.tips-list {
+  font-family: 'Lora', serif; /* Serif font */
+  list-style-type: disc;
+  padding-left: 25px;
+  font-size: 1.25rem;
+  color: #444;
+}
+
+/* --- Mint Green Card --- */
+.welcome-card {
+  background-color: #e0f2f1;
+  padding: 40px;
+  border-radius: 25px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+  text-align: center;
+  border: 1px solid #d1e7e6;
+}
+
+.card-heading {
+  /* Match design: Thin, handwritten feel */
+  font-family: 'Quicksand', sans-serif;
+  color: #4db6ac;
+  font-size: 1.6rem;
+  font-weight: 300; /* Light weight looks more like the design */
+  margin: 0 0 15px 0;
+}
+
+.card-text {
+  /* Serif font for the explanatory text */
+  font-family: 'Lora', serif;
+  font-size: 1.1rem;
+  color: #4a5a58;
+  margin-bottom: 30px;
+  line-height: 1.5;
+}
+
+/* Button Styling */
+.get-started-btn {
+  font-family: 'Quicksand', sans-serif;
+  background-color: white;
+  color: #000;
+  border: none;
+  padding: 15px 35px;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.get-started-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+}
+
+.btn-arrow {
+  font-size: 1.4rem;
+  font-weight: bold;
+  line-height: 0;
+  margin-top: -3px;
+}
+
+/* Responsive (Mobile) */
+@media (max-width: 900px) {
+  .welcome-container {
+    flex-direction: column;
+    text-align: center;
+    gap: 40px;
+  }
+
+  .tips-list {
+    display: inline-block;
+    text-align: left;
+  }
+}

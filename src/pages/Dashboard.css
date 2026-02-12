@@ -1,0 +1,117 @@
+/* Import Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700&display=swap');
+
+.dashboard-page {
+  min-height: 100vh;
+  background-color: #f0eff6; /* Light lavender grey */
+  font-family: 'Quicksand', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 20px;
+}
+
+/* --- Home Icon (Top Left) --- */
+.home-icon-btn {
+  position: absolute;
+  top: 30px;
+  left: 30px;
+  width: 40px;
+  height: 40px;
+  background-color: #87ceeb; /* Sky Blue circle */
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: transform 0.2s;
+}
+
+.home-icon-btn:hover {
+  transform: scale(1.1);
+}
+
+/* --- Main Layout --- */
+.dashboard-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
+}
+
+/* --- Hero Image --- */
+.hero-image-container {
+  margin-bottom: 50px;
+  filter: drop-shadow(0 10px 15px rgba(0,0,0,0.1));
+}
+
+.hero-img {
+  width: 280px; /* Adjust based on your image size */
+  height: 280px;
+  object-fit: contain;
+  border-radius: 40px; /* Rounds the corners of the image itself */
+}
+
+/* --- Menu Buttons --- */
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 25px; /* Spacing between buttons */
+  width: 100%;
+  align-items: center;
+  margin-bottom: 60px;
+}
+
+.menu-btn {
+  background-color: #ffffff;
+  color: #000;
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  
+  width: 100%;
+  max-width: 500px; /* Limits width so they don't get too wide */
+  padding: 18px 20px;
+  
+  border: none;
+  border-radius: 50px; /* Pill shape */
+  cursor: pointer;
+  
+  /* The "Floaty" Shadow */
+  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.menu-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+
+.menu-btn:active {
+  transform: translateY(-1px);
+}
+
+/* --- Exit Button --- */
+.exit-btn {
+  background-color: #a594f9; /* Purple */
+  color: white;
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  
+  padding: 12px 50px;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(165, 148, 249, 0.4);
+  transition: opacity 0.2s;
+}
+
+.exit-btn:hover {
+  opacity: 0.9;
+}

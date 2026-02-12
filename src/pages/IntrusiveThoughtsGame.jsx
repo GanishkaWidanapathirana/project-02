@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 // --- SCENARIO DATA CONSTANTS ---
 
@@ -328,6 +329,7 @@ function IntrusiveThoughtsGame() {
   const [startTime, setStartTime] = useState(Date.now());
   const [responseTimes, setResponseTimes] = useState({});
   const [scenarioStartTime, setScenarioStartTime] = useState(Date.now());
+  const nav = useNavigate();
 
   const [isLoading, setIsLoading] = useState(false);
   const [resultData, setResultData] = useState(null); // Backend result
@@ -484,6 +486,12 @@ function IntrusiveThoughtsGame() {
 
     return (
       <div className="layout-container">
+         <button className="game-back-btn" onClick={() => nav('/dashboard')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
+        </button>
         <div className="intrusive-app" style={{ textAlign: 'center', padding: '40px' }}>
           <h2 style={{ color: '#333' }}>Analysis Complete</h2>
           
@@ -532,6 +540,12 @@ function IntrusiveThoughtsGame() {
   if (isLoading) {
     return (
       <div className="layout-container">
+         <button className="game-back-btn" onClick={() => nav('/dashboard')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
+        </button>
         <div className="intrusive-app" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
           <div className="spinner" style={{ 
             width: '50px', 
@@ -551,6 +565,12 @@ function IntrusiveThoughtsGame() {
   // --- RENDER 3: GAME VIEW (Default) ---
   return (
     <div className="layout-container">
+       <button className="game-back-btn" onClick={() => nav('/dashboard')}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span>Back</span>
+        </button>
       <div className="intrusive-app">
         {/* Progress Bar */}
         <div className="progress-wrapper">

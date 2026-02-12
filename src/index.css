@@ -10,24 +10,38 @@
   --bg-app: #F7F8FA;
 }
 
+/* --- GLOBAL RESET & FULL HEIGHT FIX --- */
 * { 
   box-sizing: border-box; 
 }
 
-body {
+html, body {
   margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%; /* Ensures body fills the screen */
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background: var(--bg-app);
   color: var(--text-main);
-  min-height: 100vh;
+  overflow-x: hidden; /* Prevents horizontal scroll */
 }
 
-/* Common Layout Wrapper */
+/* Ensures React root div stretches to full height */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- APP LAYOUT --- */
 .layout-container {
   display: flex;
   justify-content: center;
   padding: 24px;
   width: 100%;
+  flex: 1; /* Makes layout take available space */
 }
 
 /* ========================================
@@ -908,7 +922,6 @@ footer {
   }
 }
 
-
 /* ========================================
    AUTH PAGES (LOGIN / REGISTER)
    ======================================== */
@@ -993,3 +1006,43 @@ footer {
   border-color: var(--info);
   box-shadow: 0 0 0 3px rgba(54,118,209,0.15);
 }
+
+/* Floating Back Button for Games */
+.game-back-btn {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background-color: #ffffff;
+  color: #3676D1; /* Matches your --info variable */
+  border: none;
+  border-radius: 50px;
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease;
+  z-index: 100;
+}
+
+.game-back-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  background-color: #f8f9ff;
+}
+
+.game-back-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Ensure the layout container can position the button correctly */
+.layout-container {
+  position: relative;
+  min-height: 100vh;
+}
+

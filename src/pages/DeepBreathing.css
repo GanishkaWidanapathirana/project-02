@@ -1,0 +1,132 @@
+/* Import Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&display=swap');
+
+.breathing-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #f0eff6; /* Light lavender grey */
+  font-family: 'Quicksand', sans-serif;
+  padding: 20px;
+}
+
+/* --- Header Text --- */
+.breathing-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #000;
+  margin: 0 0 10px 0;
+}
+
+.breathing-subtitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #6ea8fe; /* Light Blue */
+  margin-bottom: 50px;
+}
+
+/* --- Animation Circle --- */
+.circle-container {
+  height: 350px;
+  width: 350px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 60px;
+  position: relative;
+}
+
+.breathing-circle {
+  width: 200px; /* Starting size */
+  height: 200px;
+  background-color: #b5dca8; /* Sage Green from your image */
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 30px rgba(181, 220, 168, 0.4);
+  
+  /* Text Styles */
+  color: #000;
+  font-weight: 700;
+  text-align: center;
+  
+  /* Smooth Animation Transition */
+  transition: transform 1s ease-in-out;
+  will-change: transform;
+}
+
+/* ANIMATION STATES */
+
+/* 1. Inhale: Grow Big (4 seconds) */
+.breathing-circle.inhale {
+  transform: scale(1.6);
+  transition: transform 4s ease-in-out; /* Matches Inhale duration */
+}
+
+/* 2. Hold: Stay Big (2 seconds) */
+.breathing-circle.hold {
+  transform: scale(1.6);
+  transition: transform 0s; /* No movement */
+}
+
+/* 3. Exhale: Shrink Back (4 seconds) */
+.breathing-circle.exhale {
+  transform: scale(1);
+  transition: transform 4s ease-in-out; /* Matches Exhale duration */
+}
+
+/* 4. Paused State */
+.breathing-circle.paused {
+  /* Freeze the size right where it is */
+  transition: none; 
+}
+
+.circle-text {
+  font-size: 1.1rem;
+  margin-bottom: 5px;
+}
+
+.timer-text {
+  font-size: 0.9rem;
+  opacity: 0.6;
+}
+
+/* --- Buttons --- */
+.controls-container {
+  display: flex;
+  gap: 150px; /* Wide spacing per design */
+  margin-bottom: 30px;
+}
+
+.control-btn {
+  background-color: #a594f9; /* Purple */
+  color: white;
+  border: none;
+  border-radius: 25px;
+  padding: 12px 40px;
+  font-family: 'Quicksand', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(165, 148, 249, 0.4);
+  min-width: 120px;
+  transition: transform 0.1s;
+}
+
+.control-btn:active {
+  transform: scale(0.95);
+}
+
+.back-link {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+  margin-top: 10px;
+}
