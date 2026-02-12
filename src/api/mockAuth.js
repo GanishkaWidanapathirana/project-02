@@ -7,32 +7,62 @@ const saveUsers = (users) =>
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 
 export const registerApi = async (data) => {
-  await new Promise(r => setTimeout(r, 800)); // simulate delay
+  try {
+    const response = await fetch('https://ocd-app-bvhwa9ckhnhgbhhk.southeastasia-01.azurewebsites.net/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // Pass the object containing name, email, age, and password
+      body: JSON.stringify({
+        name: data.name,
+        email: data.email,
+        age: data.age,
+        password: data.password
+      }),
+    });
 
-  const users = getUsers();
-  if (users.find(u => u.email === data.email)) {
-    throw new Error('Email already registered');
+    const result = await response.json();
+
+    if (!response.ok) {
+      // This catches the errors handled by your Python status codes
+      // e.g., if you return status=400 for 'Email already registered'
+      throw new Error(result.message || 'Registration failed');
+    }
+
+    return result;
+  } catch (error) {
+    throw error;
   }
-
-  users.push(data);
-  saveUsers(users);
-  return { success: true };
 };
 
 export const loginApi = async ({ email, password }) => {
-  await new Promise(r => setTimeout(r, 600));
+  try {
+    const response = await fetch('http://localhost:5000/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // Pass email and password as a JSON object
+      body: JSON.stringify({ email, password }),
+    });
 
-//   const users = getUsers();
-//   const user = users.find(
-//     u => u.email === email && u.password === password
-//   );
+    const result = await response.json();
 
-//   if (!user) {
-//     throw new Error('Invalid credentials');
-//   }
+    if (!response.ok) {
+      // Throws error if Python returns status codes like 401 or 404
+      throw new Error(result.message || 'Invalid credentials');
+    }
 
-  return {
-    token: btoa(`${email}:${Date.now()}`),
-    user: { name: email, email: email }
-  };
+    // Returns the token and user details to your frontend state
+    return {
+      token: result.token,
+      token_type: result.token_type,
+      // Since your API currently only returns the token, 
+      // we use the email to fill the user name locally
+      user: { name: email.split('@')[0], email: email }
+    };
+  } catch (error) {
+    throw error;
+  }
 };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getToken } from '../utils/auth';
 
 // Section 2 & 5: Scenarios with unsafe/safe states
 const SCENARIOS = [
@@ -314,11 +315,14 @@ function CheckingGame() {
     };
 
    setIsLoading(true);
+   const token = getToken();
 
     try {
         const response = await fetch('http://127.0.0.1:5000/get_ocd_level', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json' ,
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({
             game_id: 3,
             input_data: payload

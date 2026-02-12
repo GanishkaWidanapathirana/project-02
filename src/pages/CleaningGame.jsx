@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import { getToken } from '../utils/auth';
 // Constants from Game Spec (Section 2 & 3)
 const GRID_SIZE = 8;
 
@@ -404,10 +404,11 @@ function CleaningGame() {
         high_risk_area_obsession_intensity: obsessionIntensity
     };
     setIsLoading(true);
+    const token = getToken();
     try {
         const response = await fetch('http://127.0.0.1:5000/get_ocd_level', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json','Authorization': `Bearer ${token}` },
           body: JSON.stringify({
             game_id: 2,
             input_data: payload

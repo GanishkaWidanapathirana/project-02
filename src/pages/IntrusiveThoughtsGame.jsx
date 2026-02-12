@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import { getToken } from '../utils/auth';
 // --- SCENARIO DATA CONSTANTS ---
 
 // Section 3: Module 1 - Ambiguous Situations Test
@@ -395,6 +395,7 @@ function IntrusiveThoughtsGame() {
   const handleSubmit = async (finalResponses, finalTimes) => {
     const timeTaken = (Date.now() - startTime) / 1000;
     setIsLoading(true);
+    const token = getToken();
     // Extract deep features using the new methodology
     const derivedFeatures = extractGameFeatures(finalResponses, finalTimes);
 
@@ -433,6 +434,7 @@ function IntrusiveThoughtsGame() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(apiPayload),
       });
