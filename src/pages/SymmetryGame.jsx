@@ -13,6 +13,108 @@ const INITIAL_PIECES = [
   { id: 4, boxX: 3, boxY: 3, subX: 4, subY: 4, color: 'btn-purple', confirmed: false },
 ];
 
+// --- MOBILE D-PAD COMPONENT ---
+// Fires synthetic KeyboardEvents so existing handleKeyDown picks them up unchanged.
+// Rendered as a fixed overlay; only visible on touch devices via CSS.
+function MobileDPad() {
+  const fireKey = (key) => {
+    window.dispatchEvent(new KeyboardEvent('keydown', {
+      key,
+      bubbles: true,
+      cancelable: true,
+    }));
+  };
+
+  // Repeat-fire while finger is held down
+  const intervalRef = useRef(null);
+
+  const startFiring = (key) => {
+    fireKey(key); // immediate first press
+    intervalRef.current = setInterval(() => fireKey(key), 120);
+  };
+
+  const stopFiring = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  const btnProps = (key) => ({
+    onTouchStart: (e) => { e.preventDefault(); startFiring(key); },
+    onTouchEnd:   (e) => { e.preventDefault(); stopFiring(); },
+    onMouseDown:  () => startFiring(key),
+    onMouseUp:    stopFiring,
+    onMouseLeave: stopFiring,
+  });
+
+  return (
+    <>
+      <style>{`
+        .mobile-dpad {
+          display: none; /* hidden on desktop */
+        }
+        @media (hover: none), (pointer: coarse) {
+          .mobile-dpad {
+            display: grid;
+            grid-template-columns: 52px 52px 52px;
+            grid-template-rows: 52px 52px 52px;
+            gap: 4px;
+            position: fixed;
+            bottom: 28px;
+            right: 24px;
+            z-index: 1000;
+            user-select: none;
+            -webkit-user-select: none;
+          }
+        }
+        .dpad-btn {
+          background: rgba(30, 30, 40, 0.82);
+          border: 1.5px solid rgba(255,255,255,0.18);
+          border-radius: 10px;
+          color: #fff;
+          font-size: 22px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+          transition: background 0.1s, transform 0.08s;
+          touch-action: none;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .dpad-btn:active {
+          background: rgba(80, 120, 220, 0.85);
+          transform: scale(0.93);
+        }
+        .dpad-center {
+          background: transparent;
+          border: none;
+          box-shadow: none;
+          pointer-events: none;
+        }
+      `}</style>
+
+      <div className="mobile-dpad" aria-label="Direction controls">
+        {/* Row 1 */}
+        <div />
+        <button className="dpad-btn" aria-label="Up" {...btnProps('ArrowUp')}>▲</button>
+        <div />
+        {/* Row 2 */}
+        <button className="dpad-btn" aria-label="Left"  {...btnProps('ArrowLeft')}>◀</button>
+        <div className="dpad-btn dpad-center" />
+        <button className="dpad-btn" aria-label="Right" {...btnProps('ArrowRight')}>▶</button>
+        {/* Row 3 */}
+        <div />
+        <button className="dpad-btn" aria-label="Down" {...btnProps('ArrowDown')}>▼</button>
+        <div />
+      </div>
+    </>
+  );
+}
+
 function SymmetryGame() {
   const [pieces, setPieces] = useState(INITIAL_PIECES);
   const [selectedId, setSelectedId] = useState(null);
@@ -465,7 +567,6 @@ function SymmetryGame() {
             <h3>Stats</h3>
             <div className="coords">
               Moves: {metrics.total_moves}<br/>
-              {/* --- FIX: Display the live running timer --- */}
               Time: {elapsedTime}s<br/>
               Confirmed: {pieces.filter(p => p.confirmed).length}/{pieces.length}
             </div>
@@ -504,6 +605,9 @@ function SymmetryGame() {
           Calm • Non-judgmental • No time pressure
         </footer>
       </div>
+
+      {/* Mobile D-Pad — only visible on touch devices, zero desktop impact */}
+      <MobileDPad />
     </div>
   );
 }
