@@ -211,60 +211,72 @@ function SymmetryGame() {
     if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
     e.preventDefault();
 
+    // Total sub-steps across the full board
+    const TOTAL_STEPS = GRID_SIZE * SUB_GRID_STEPS; // 6 * 8 = 48
+
     setPieces((prevPieces) => {
-      return prevPieces.map((p) => {
-        if (p.id !== selectedId || p.confirmed) return p;
+      const piece = prevPieces.find(p => p.id === selectedId);
+      if (!piece || piece.confirmed) return prevPieces;
 
-        let newSubX = p.subX;
-        let newSubY = p.subY;
-        let moved = false;
+      // Convert box+sub coords to a single global coordinate (0 – TOTAL_STEPS-1)
+      let globalX = piece.boxX * SUB_GRID_STEPS + piece.subX;
+      let globalY = piece.boxY * SUB_GRID_STEPS + piece.subY;
 
-        switch (e.key) {
-          case 'ArrowUp':
-            if (newSubY > 0) { newSubY--; moved = true; }
-            else if (p.boxY > 0) { // Coarse move UP to next box
-                // Logic for moving between boxes could be added here if desired
-            }
-            break;
-          case 'ArrowDown':
-            if (newSubY < SUB_GRID_STEPS-1) { newSubY++; moved = true; }
-            break;
-          case 'ArrowLeft':
-            if (newSubX > 0) { newSubX--; moved = true; }
-            break;
-          case 'ArrowRight':
-            if (newSubX < SUB_GRID_STEPS-1) { newSubX++; moved = true; }
-            break;
-          default: return p;
-        }
+      let newGlobalX = globalX;
+      let newGlobalY = globalY;
 
-        if (moved) {
-          const currentTime = Date.now();
-          const timeDelta = (currentTime - lastMoveTimeRef.current) / 1000; 
-          lastMoveTimeRef.current = currentTime;
-          
-          moveSequence.current.push(e.key);
-          const isFine = true; 
+      switch (e.key) {
+        case 'ArrowUp':    newGlobalY = Math.max(0, globalY - 1); break;
+        case 'ArrowDown':  newGlobalY = Math.min(TOTAL_STEPS - 1, globalY + 1); break;
+        case 'ArrowLeft':  newGlobalX = Math.max(0, globalX - 1); break;
+        case 'ArrowRight': newGlobalX = Math.min(TOTAL_STEPS - 1, globalX + 1); break;
+        default: return prevPieces;
+      }
 
-          setMetrics(prev => ({
-            ...prev,
-            total_moves: prev.total_moves + 1,
-            moves_per_button: {
-              ...prev.moves_per_button,
-              [p.id]: (prev.moves_per_button[p.id] || 0) + 1
-            },
-            time_between_moves: [...prev.time_between_moves, timeDelta],
-            move_direction_counts: {
-              ...prev.move_direction_counts,
-              [e.key]: (prev.move_direction_counts[e.key] || 0) + 1
-            },
-            fine_adjustment_moves: isFine ? prev.fine_adjustment_moves + 1 : prev.fine_adjustment_moves,
-            coarse_moves: !isFine ? prev.coarse_moves + 1 : prev.coarse_moves
-          }));
-        }
+      const moved = newGlobalX !== globalX || newGlobalY !== globalY;
+      if (!moved) return prevPieces;
 
-        return { ...p, subX: newSubX, subY: newSubY };
-      });
+      // Derive new box and sub coords from global
+      const newBoxX = Math.floor(newGlobalX / SUB_GRID_STEPS);
+      const newBoxY = Math.floor(newGlobalY / SUB_GRID_STEPS);
+      const newSubX = newGlobalX % SUB_GRID_STEPS;
+      const newSubY = newGlobalY % SUB_GRID_STEPS;
+
+      // No-overlap: block if the destination box is occupied by a different confirmed or unconfirmed piece
+      const boxOccupied = prevPieces.some(
+        other => other.id !== selectedId && other.boxX === newBoxX && other.boxY === newBoxY
+      );
+      if (boxOccupied) return prevPieces;
+
+      // --- Feature collection (unchanged) ---
+      const currentTime = Date.now();
+      const timeDelta = (currentTime - lastMoveTimeRef.current) / 1000;
+      lastMoveTimeRef.current = currentTime;
+
+      moveSequence.current.push(e.key);
+      const isFine = true;
+
+      setMetrics(prev => ({
+        ...prev,
+        total_moves: prev.total_moves + 1,
+        moves_per_button: {
+          ...prev.moves_per_button,
+          [piece.id]: (prev.moves_per_button[piece.id] || 0) + 1
+        },
+        time_between_moves: [...prev.time_between_moves, timeDelta],
+        move_direction_counts: {
+          ...prev.move_direction_counts,
+          [e.key]: (prev.move_direction_counts[e.key] || 0) + 1
+        },
+        fine_adjustment_moves: isFine ? prev.fine_adjustment_moves + 1 : prev.fine_adjustment_moves,
+        coarse_moves: !isFine ? prev.coarse_moves + 1 : prev.coarse_moves
+      }));
+
+      return prevPieces.map(p =>
+        p.id === selectedId
+          ? { ...p, boxX: newBoxX, boxY: newBoxY, subX: newSubX, subY: newSubY }
+          : p
+      );
     });
   }, [selectedId]);
 
