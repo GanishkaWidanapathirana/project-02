@@ -8,7 +8,7 @@ const saveUsers = (users) =>
 
 export const registerApi = async (data) => {
   try {
-    const response = await fetch('https://ocd-app-bvhwa9ckhnhgbhhk.southeastasia-01.azurewebsites.net/auth/register', {
+    const response = await fetch('http://54.79.79.106:500/auth/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -38,37 +38,37 @@ export const registerApi = async (data) => {
 
 export const loginApi = async ({ email, password }) => {
   try {
-    // const response = await fetch('http://localhost:5000/auth/login', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //   },
-    //   // Pass email and password as a JSON object
-    //   body: JSON.stringify({ email, password }),
-    // });
+    const response = await fetch('/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      // Pass email and password as a JSON object
+      body: JSON.stringify({ email, password }),
+    });
 
-    //const result = await response.json();
+    const result = await response.json();
 
-    // if (!response.ok) {
-    //   // Throws error if Python returns status codes like 401 or 404
-    //   throw new Error(result.message || 'Invalid credentials');
-    // }
+    if (!response.ok) {
+      // Throws error if Python returns status codes like 401 or 404
+      throw new Error(result.message || 'Invalid credentials');
+    }
 
-    // Returns the token and user details to your frontend state
-    // return {
-    //   token: result.token,
-    //   token_type: result.token_type,
-    //   // Since your API currently only returns the token, 
-    //   // we use the email to fill the user name locally
-    //   user: { name: email.split('@')[0], email: email }
-    // };
+    //Returns the token and user details to your frontend state
     return {
-      token: "tokenjbdfgvbdvbjhbvbvb",
-      token_type: "Bearer",
+      token: result.token,
+      token_type: result.token_type,
       // Since your API currently only returns the token, 
       // we use the email to fill the user name locally
       user: { name: email.split('@')[0], email: email }
     };
+    // return {
+    //   token: "tokenjbdfgvbdvbjhbvbvb",
+    //   token_type: "Bearer",
+    //   // Since your API currently only returns the token, 
+    //   // we use the email to fill the user name locally
+    //   user: { name: email.split('@')[0], email: email }
+    // };
   } catch (error) {
     throw error;
   }

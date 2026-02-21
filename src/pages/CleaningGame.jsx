@@ -406,7 +406,7 @@ function CleaningGame() {
     setIsLoading(true);
     const token = getToken();
     try {
-        const response = await fetch('http://127.0.0.1:5000/get_ocd_level', {
+        const response = await fetch('/get_ocd_level', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json','Authorization': `Bearer ${token}` },
           body: JSON.stringify({
