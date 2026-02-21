@@ -8,7 +8,7 @@ const saveUsers = (users) =>
 
 export const registerApi = async (data) => {
   try {
-    const response = await fetch('http://54.79.79.106:500/auth/register', {
+    const response = await fetch('/api/auth/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -38,7 +38,7 @@ export const registerApi = async (data) => {
 
 export const loginApi = async ({ email, password }) => {
   try {
-    const response = await fetch('/auth/login', {
+    const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

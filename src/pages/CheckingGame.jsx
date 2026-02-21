@@ -318,7 +318,7 @@ function CheckingGame() {
    const token = getToken();
 
     try {
-        const response = await fetch('/get_ocd_level', {
+        const response = await fetch('/api/get_ocd_level', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' ,
             'Authorization': `Bearer ${token}`
