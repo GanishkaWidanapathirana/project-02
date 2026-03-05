@@ -430,7 +430,7 @@ function IntrusiveThoughtsGame() {
     try {
       
       // Send POST request to the backend
-      const response = await fetch('/api/get_ocd_level', {
+      const response = await fetch('http://54.79.79.106:5000/get_ocd_level', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
