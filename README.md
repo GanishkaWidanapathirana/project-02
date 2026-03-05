@@ -1,16 +1,110 @@
-# React + Vite
+# Symmetry Game – Local Setup Guide
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This project is built using **Vite**. Follow the steps below to run the project locally.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+# 1. Install Node.js
 
-## React Compiler
+Download and install **Node.js (LTS recommended)** from:
+https://nodejs.org/
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Verify installation:
 
-## Expanding the ESLint configuration
+```
+node -v
+npm -v
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+---
+
+# 2. Clone the Repository
+
+```
+git clone <repository-url>
+cd <project-folder>
+```
+
+---
+
+# 3. Checkout the `local-run` Branch
+
+```
+git checkout local-run
+```
+
+If the branch does not exist locally:
+
+```
+git fetch origin
+git checkout -b local-run origin/local-run
+```
+
+---
+
+# 4. Install Dependencies
+
+```
+npm install
+```
+
+---
+
+# 5. Run Development Server
+
+```
+npm run dev
+```
+
+Then open:
+
+```
+http://localhost:5173
+```
+
+---
+
+# 6. Build Production Version
+
+```
+npm run build
+```
+PWA features are not available in development mode, so you must build the production version.
+This creates the optimized production build.
+
+---
+
+# 7. Preview Production Build
+
+```
+npm run preview
+```
+
+Open:
+
+```
+http://localhost:4173
+```
+
+---
+
+# Available Scripts
+
+```
+npm run dev       # start development server
+npm run build     # create production build
+npm run preview   # preview production build
+npm run lint      # run ESLint
+```
+
+---
+
+# Command Summary
+
+```
+git clone <repository-url>
+cd <project-folder>
+git checkout local-run
+npm install
+npm run dev
+```
